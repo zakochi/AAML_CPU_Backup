@@ -20,7 +20,7 @@ PATCH_DIR := src
 
 # RISC-V Compiled Params
 ARCH_FLAGS   := -march=rv32im -mabi=ilp32 -mcmodel=medany
-COMMON_FLAGS := $(ARCH_FLAGS) -Os -g -ffunction-sections -fdata-sections -fno-builtin \
+COMMON_FLAGS := $(ARCH_FLAGS) -O3 -g -ffunction-sections -fdata-sections -fno-builtin \
                 --param ggc-min-expand=0 --param ggc-min-heapsize=1024000
 CFLAGS        := $(COMMON_FLAGS) -std=c11
 CXXFLAGS      := $(COMMON_FLAGS) -std=c++11 -fno-rtti -fno-exceptions -fpermissive
