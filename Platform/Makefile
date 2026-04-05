@@ -1,4 +1,4 @@
-# /Makefile
+# Makefile
 ROOT_DIR   := $(shell pwd)
 BUILD_DIR  := $(ROOT_DIR)/build
 SW_DIR     := $(ROOT_DIR)/sw
@@ -18,13 +18,6 @@ run:
 	@echo ">> [UART] Starting pipeline..."
 	rm -f *.str *.debug *.log *.jou *.pb vivado*.backup.*
 	python3 $(SW_DIR)/upload.py $(BUILD_DIR)/sw/main.bin
-
-get_new_SoC:
-	@echo ">> Copying hardware source files..."
-	rm -rf ./hw/MB.srcs
-	cp -r ./../7_MB_ACC/MB.srcs ./hw
-	cp -r ./../7_MB_ACC/MB/MB.srcs/sources_1/new/* ./hw/MB.srcs/sources_1/new/ 
-	cp -r ./../7_MB_ACC/MB/MB.srcs/sources_1/ip/ ./hw/MB.srcs/sources_1/. 
 
 all_clean:
 	@echo ">> Cleaning everything..."
