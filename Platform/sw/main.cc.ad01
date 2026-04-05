@@ -153,6 +153,7 @@ const int kTensorArenaSize = 4096;
 alignas(16) uint8_t tensor_arena[kTensorArenaSize];
 
 int main(int argc, char* argv[]) {
+	bios_menu();
     printf("\r\n=== FPGA Functional Verification ===\r\n");
 
     tflite::MicroErrorReporter micro_error_reporter;
