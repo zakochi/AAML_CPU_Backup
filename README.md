@@ -57,6 +57,8 @@ Once the environment is set up, navigate to the CUSTOM_SoC_Platform/Platform dir
 ## SoC Specification
 Need someone to add more details.
 
+1. System Frequency@50MHz.
+
 ## Memory Mapping
 <img width="440" height="580" alt="image" src="https://github.com/user-attachments/assets/09116d81-30c0-4f12-ba76-043dab1ee0c6" />
 
