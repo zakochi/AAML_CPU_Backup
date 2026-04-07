@@ -84,6 +84,7 @@ module icache_plus(
             vld_i <= 0;
             i_exception <= 0;
             mem_addr <= 0;
+			icache_vld_o <= 0;
         end
         else begin
             case(cs)
@@ -96,11 +97,13 @@ module icache_plus(
                             cs <= IDLE;
                             vld_out_inst <= 0;
                             {wr_vld1 ,wr_vld0} <= {match1, match0};
+							icache_vld_o <= 1;
                         end
                         else if(hit)begin
                             cs <= IDLE;
                             {wr_vld1 ,wr_vld0} <= 2'b00;
                             vld_out_inst <= {match1, match0};
+							icache_vld_o <= 1;
                         end
                         else begin
                             cs <= RM;
@@ -108,6 +111,7 @@ module icache_plus(
                             vld_out_inst <= 0;
                             //mem_addr <= {tag_i, idx_i, ofs_i};//{tag_i, idx_i, 5'd0};
                             req_rm <= 1; 
+							icache_vld_o <= 0;
                         end
                         end
                 RM : begin
@@ -138,6 +142,7 @@ module icache_plus(
                             fifo_en <= 0;
                             cs <= IDLE;
                             {wr_vld1 ,wr_vld0} <= 2'b00;
+							icache_vld_o <= 1;
                             vld_out_inst <= {wr_vld1 ,wr_vld0};
                 end
             endcase
@@ -156,15 +161,15 @@ module icache_plus(
 	end
     
     always@(*)begin
-        icache_vld_o = 0;
+        //icache_vld_o = 0;
 		cpu_inst_o = 0;
         if(vld_out_inst[0])begin
             cpu_inst_o =  cpu_inst_0;
-			icache_vld_o = 1;
+			//icache_vld_o = 1;
 		end
         else if(vld_out_inst[1])begin
             cpu_inst_o =  cpu_inst_1;
-			icache_vld_o = 1;
+			//icache_vld_o = 1;
 		end
     end
     
