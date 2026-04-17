@@ -1,6 +1,6 @@
 # CUSTOM_SoC_Platform
 
-**Version 1.1** Support CBO.clean, CBO.flush, CBO.invalidate, fence.i Operation <br></br>
+**Version 1.1** Support CBO.clean, CBO.flush, CBO.invalidate, fence.i operations <br></br>
 **Version 1.0** Original version
 
 ## Environment Setup
