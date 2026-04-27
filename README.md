@@ -22,7 +22,7 @@ Add the toolchain to your PATH in your `.bashrc` or `.zshrc`:
 export PATH=$PATH:$HOME/riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14/bin
 ```
 
-**Note:** `This part was copied from CSIC30066: Accelerator Architectures for Machine Learning`<br></br>
+**Note:** `This Step 1 was just copied from CSIC30066: Accelerator Architectures for Machine Learning`<br></br>
 
 
 ### Step 2: Clone the Repository
