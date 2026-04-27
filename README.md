@@ -8,13 +8,22 @@
 ### Step 0: Initial Preparation
 Prepare a clean directory in your Linux environment and navigate into it.
 
-### Step 1: Download the RISC-V Toolchain
+### Step 1: Install RISC-V toolchain ([Download linux-ubuntu](https://github.com/sifive/freedom-tools/releases/tag/v2020.08.0))
 Open your terminal and execute the following commands to download and extract the toolchain:
+![](https://hackmd.io/_uploads/rk517Ux02.png)
 
-```bash
-wget [https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14.tar.gz](https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14.tar.gz)
-tar -xvf riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14.tar.gz
+Download the August 2020 toolchain from freedom-tools and unpack the binaries to your home directory:
+``` bash
+$ tar xvfz ~/Downloads/riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14.tar.gz
 ```
+
+Add the toolchain to your PATH in your `.bashrc` or `.zshrc`:
+``` bash
+export PATH=$PATH:$HOME/riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14/bin
+```
+
+**Note:** `This part was copied from CSIC30066: Accelerator Architectures for Machine Learning`<br></br>
+
 
 ### Step 2: Clone the Repository
 ```bash
