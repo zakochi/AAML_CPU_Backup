@@ -1,13 +1,39 @@
 #!/bin/bash
 # hw/run_hw.sh
-XILINX_SETTING="/home/yc/Xilinx/Vivado/2024.1/settings64.sh"
-source "$XILINX_SETTING" || { echo ">> [ERROR] Vivado settings not found!"; exit 1; }
+#XILINX_SETTING="/home/yc/Xilinx/Vivado/2024.1/settings64.sh"
+#source "$XILINX_SETTING" || { echo ">> [ERROR] Vivado settings not found!"; exit 1; }
+
+find_vivado_settings() {
+    local settings_path=""
+    for base_dir in "/tools/Xilinx/Vivado" "/opt/Xilinx/Vivado" "$HOME/Xilinx/Vivado" "/home/yc/Xilinx/Vivado"; do
+        if [ -d "$base_dir" ]; then
+            local latest_ver=$(ls -d "$base_dir"/* 2>/dev/null | grep -E '[0-9]+\.[0-9]+' | sort -V | tail -n 1)
+            if [ -n "$latest_ver" ] && [ -f "$latest_ver/settings64.sh" ]; then
+                settings_path="$latest_ver/settings64.sh"
+                break
+            fi
+        fi
+    done
+    echo "$settings_path"
+}
+
+if ! command -v vivado &> /dev/null; then
+    VIVADO_SETTING=$(find_vivado_settings)
+    if [ -z "$VIVADO_SETTING" ]; then
+        echo ">> [ERROR] Vivado settings not found automatically! Please check your installation path."
+        exit 1
+    fi
+    echo ">> [INFO] Auto-detected Vivado settings: $VIVADO_SETTING"
+    source "$VIVADO_SETTING"
+else
+    echo ">> [INFO] Vivado is already available in your shell environment."
+fi
 
 ROOT_DIR=$(pwd)
 export BUILD_DIR="$ROOT_DIR/build"
 HW_DIR="$ROOT_DIR/hw"
 BIT_FINAL="$BUILD_DIR/out.bit"
-BOOT_HEX="$BUILD_DIR/boot/boot.hex"
+BOOT_HEX="$BUILD_DIR/build/boot/boot.hex" 
 
 NEEDS_SYNTH=true
 if [ -f "$BIT_FINAL" ]; then
