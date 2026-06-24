@@ -74,8 +74,8 @@ Need someone to add more details.
 <img width="440" height="580" alt="image" src="https://github.com/user-attachments/assets/09116d81-30c0-4f12-ba76-043dab1ee0c6" />
 
 ## Appendix
-The longest path: IF1->IF2->ID->EX->MEM1->MEM2->MEM3->MEM4->WB
-**alu_bench:** (8 addi instructions + 2 loop-related instructions)*10M
-**dep_bench:** (5 instructions for RAW + 2 loop-related instructions)*10M
-**load_bench:** (lw t1, 0(%0) + addi t1,t1,1 + 2 loop-related instructions)*10M
+The longest path: IF1->IF2->ID->EX->MEM1->MEM2->MEM3->MEM4->WB<br></br>
+**alu_bench:** (8 addi instructions + 2 loop-related instructions)*10M<br></br>
+**dep_bench:** (5 instructions for RAW + 2 loop-related instructions)*10M<br></br>
+**load_bench:** (lw t1, 0(%0) + addi t1,t1,1 + 2 loop-related instructions)*10M<br></br>
 <img width="1057" height="203" alt="image" src="https://github.com/user-attachments/assets/d8f8e8cd-88e0-4a3b-9222-41fd6eb3ba1e" />
