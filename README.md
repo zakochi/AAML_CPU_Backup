@@ -74,7 +74,7 @@ Need someone to add more details.
 <img width="440" height="580" alt="image" src="https://github.com/user-attachments/assets/09116d81-30c0-4f12-ba76-043dab1ee0c6" />
 
 ## Appendix
-The longest path: IF1->IF2->ID->EX->MEM1->MEM2->MEM3->MEM4->WB<br></br>
+The longest path(lw path) in RTL layer: IF1->IF2->ID->EX->MEM1->MEM2->MEM3->MEM4->WB<br></br>
 **alu_bench:** (8 addi instructions + 2 loop-related instructions)*10M<br></br>
 **dep_bench:** (5 instructions for RAW + 2 loop-related instructions)*10M<br></br>
 **load_bench:** (lw t1, 0(%0) + addi t1,t1,1 + 2 loop-related instructions)*10M<br></br>
