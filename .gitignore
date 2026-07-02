@@ -1,2 +1,5 @@
 utils_1/
 *.gen/
+*.git/
+.Xil/
+build/
