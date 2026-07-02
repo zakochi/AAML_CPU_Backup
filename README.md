@@ -23,3 +23,8 @@
 此平台的使用設定可以參照main裡面的README.md
 我有將NPU.v放到Platform/hw/srcs底下，方便設計，不用去import裡面的一堆文件裡面翻。
 Platform/Reference可以忽略甚至移除，我原本想把乾淨的NPU.v放裡面但好像也沒必要。
+
+### 軟硬體協同方式
+可以參考main.cc和NPU裡面的範例。
+客製化指令的方式可以參考CFU Playground的方式，讓客製化指令永遠是cfu_op(rs1,rs2,func)的格式。
+main裡面目前的方式也很好但如果有n條客製化NPU指令，就變成要N個指令宣告。
