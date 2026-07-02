@@ -9,6 +9,9 @@ create_project ${proj_name} ./${proj_name} -part xc7a100tcsg324-1 -force
 set v_files [glob -nocomplain "$hw_srcs/sources_1/imports/*.v"]
 if {[llength $v_files] > 0} { add_files -norecurse $v_files }
 
+set v_files [glob -nocomplain "$hw_srcs/*.v"]
+if {[llength $v_files] > 0} { add_files -norecurse $v_files }
+
 set ip_files [glob -nocomplain "$hw_srcs/sources_1/ip/*/*.xci"]
 if {[llength $ip_files] > 0} { add_files -norecurse $ip_files }
 
