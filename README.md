@@ -28,3 +28,13 @@ Platform/Reference可以忽略甚至移除，我原本想把乾淨的NPU.v放裡
 可以參考main.cc和NPU裡面的範例。
 客製化指令的方式可以參考CFU Playground的方式，讓客製化指令永遠是cfu_op(rs1,rs2,func)的格式。
 main裡面目前的方式也很好但如果有n條客製化NPU指令，就變成要N個指令宣告。
+
+## 軟體需要近一步處理的東西
+這裡可以參考CFU_Playground，以下我會列一些點做參考
+1. Menu
+2. mcycle的包裝(Performance count)
+3. 客製化指令的包裝
+4. 模型選擇/Input data/Output data/HW test & Verification
+5. 優化分文件、檔案放置位置、File tree
+6. main.c可以乾淨點
+
