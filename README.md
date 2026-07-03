@@ -37,4 +37,5 @@ main裡面目前的方式也很好但如果有n條客製化NPU指令，就變成
 4. 模型選擇/Input data/Output data/HW test & Verification
 5. 優化分文件、檔案放置位置、File tree
 6. main.c可以乾淨點
+7. CBO包裝
 
