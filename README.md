@@ -11,6 +11,19 @@
 此平台的參考code(main.cc)和目前 NPU 範例邏輯都是由AI生成的，只做為階段性驗證VPU改 custom accelerator 的過程中沒有導致SoC故障。<br></br>
 配套的Software平台現在整理成比較容易擴充的架構，可用於 HW/SW 結合跑 TFLM 的模型推論加速，也能單純測試 custom accelerator 的功能性。<br></br>
 
+### 快速開發流程
+1. 選模型: 在 `Platform/sw` 執行 `make models`、`make profiles`，再用
+   `make MODEL_FILE=<model>.tflite MODEL_PROFILE=<profile>` 選定模型。
+2. 寫硬體: 目前範例是 `Platform/hw/srcs/NPU.v`，新的 custom ML
+   accelerator 可以從 `Platform/hw/templates/custom_accelerator_template.v`
+   開始，介面說明在 `Platform/hw/README.md`。
+3. 寫 custom instruction wrapper: 在 `Platform/sw/project/accel_ops.h` 加
+   語意化 wrapper，底層可用 `cfu_op0..cfu_op7(funct7, rs1, rs2)` 對應
+   CUSTOM-0 的 `funct3/funct7`。
+4. 跑功能和效能測試: 在 `Platform/sw/project/user_menu.cc` 或
+   `accel_tests.cc` 加測試，使用 `perf_get_mcycle64()` 量 cycle。可先跑
+   `make validate`，不需要本機已有 RISC-V toolchain。
+
 關於此平台 accelerator interface 的知識:
 1. 如果沒有一定要按造P-ext的ISA規定，其實這個 accelerator interface 的設計就能做到P-ext要做的事，只要使用CPU interface就好。
 2. 如果今天實作的 accelerator 是 SA，AXI的部分會推薦使用Burst，能讓資料以最快的速度完成讀寫DRAM
@@ -26,8 +39,11 @@ Platform/Reference可以忽略甚至移除，我原本想把乾淨的NPU.v放裡
 
 ### 軟硬體協同方式
 可以參考main.cc和目前 NPU/custom accelerator 範例。
-客製化指令的方式可以參考CFU Playground的方式，讓客製化指令永遠是cfu_op(rs1,rs2,func)的格式。
-main裡面目前的方式也很好但如果有n條客製化 accelerator 指令，就變成要N個指令宣告。
+客製化指令的方式可以參考 CFU-Playground。軟體現在提供兩層 API:
+1. `cfu_op0..cfu_op7(funct7, rs1, rs2)` 直接對應 CUSTOM-0 的 raw
+   `funct3/funct7` 欄位，適合新增 accelerator instruction。
+2. `project/accel_ops.h` 放語意化 wrapper，讓 model kernel、menu test 和
+   performance test 不需要散落 raw function number。
 
 ## 軟體需要進一步處理的東西
 這裡可以參考CFU_Playground，以下我會列一些點做參考

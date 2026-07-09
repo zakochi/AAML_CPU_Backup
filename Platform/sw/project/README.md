@@ -8,7 +8,7 @@ Use it for code that is specific to this custom ML accelerator platform:
 ```text
 proj_menu.*   Top-level project submenu
 user_menu.*   First extension point for local demos and experiments
-accel_ops.h   Semantic wrappers over raw CUSTOM-0 `cfu_op(...)`
+accel_ops.h   Semantic wrappers over raw CUSTOM-0 `cfu_op0..cfu_op7(...)`
 accel_tests.* Functional and stress tests for the accelerator interface
 tflm_ops.*    TFLM operator resolver registration for selected models
 ```

@@ -147,6 +147,10 @@ profiles:
 templates:
 	@printf "Available templates in Platform/sw/templates:\n"
 	@find templates -maxdepth 1 -name "*_template.*" -print | sed 's#^templates/#  #'
+	@if [ -d ../hw/templates ]; then \
+		printf "Available templates in Platform/hw/templates:\n"; \
+		find ../hw/templates -maxdepth 1 -name "*_template.*" -print | sed 's#^\.\./hw/templates/#  #'; \
+	fi
 
 config:
 	@printf "PROJECT_CONFIG=%s\n" "$(PROJECT_CONFIG_STATUS)"

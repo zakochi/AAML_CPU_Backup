@@ -92,9 +92,10 @@ tests, TFLM inference, and the user extension menu.
 `project/user_menu.*` is the intended first place to add a new project-specific
 test, demo, or experiment.
 
-`app/cfu.*`, `app/software_cfu.*`, and `project/accel_ops.h` wrap CUSTOM-0 access.
-Call `cfu_op(rs1, rs2, func)` for raw custom operations, or add semantic
-helpers in `accel_ops.h`.
+`app/cfu.*`, `app/software_cfu.*`, and `project/accel_ops.h` wrap CUSTOM-0
+access. Use `cfu_op0..cfu_op7(funct7, rs1, rs2)` for raw CUSTOM-0 fields, or
+add semantic helpers in `accel_ops.h`. The legacy `cfu_op(rs1, rs2, func)` API
+is still available for the current example operations.
 
 `app/cbo.h` wraps Zicbom clean/invalidate operations. Use these helpers before
 or after accelerator AXI accesses that interact with cached DRAM data.
@@ -153,14 +154,31 @@ file through `APP_EXTRA_SRCS`, and register its function in
 
 ## Adding A Custom Instruction Helper
 
-1. Add a function ID to `app/cfu.h`.
-2. Implement the hardware encoding in `app/cfu.cc`.
+1. Choose a `funct3/funct7` pair. `cfu_op0..cfu_op7` select `funct3=0..7`;
+   their first argument is `funct7`.
+2. Implement the hardware behavior in `../hw/srcs/NPU.v`, or start from
+   `../hw/templates/custom_accelerator_template.v`.
 3. Implement the software fallback in `app/software_cfu.cc`.
 4. Add a readable wrapper in `project/accel_ops.h`.
-5. Add a test entry in `project/user_menu.cc` or `project/accel_tests.cc`.
+5. Add a functional or cycle-counting test entry in `project/user_menu.cc` or
+   `project/accel_tests.cc`.
 
 Build with `USE_SOFTWARE_CFU=1` when you want to test the software fallback
 without issuing CUSTOM-0 instructions.
+
+For raw hardware calls, keep `funct3` and `funct7` as compile-time numeric
+literals or preprocessor macros, for example:
+
+```c++
+#define MY_ACCEL_FUNCT7 6
+
+static inline uint32_t accel_my_op(uint32_t a, uint32_t b) {
+  return cfu_op0(MY_ACCEL_FUNCT7, a, b);
+}
+```
+
+Use `templates/custom_instruction_template.cc` for a standalone performance
+test skeleton.
 
 ## Adding Or Switching Models
 

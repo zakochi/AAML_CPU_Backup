@@ -6,11 +6,7 @@ namespace {
 
 uint32_t cfu_scalar_compute_hw(CfuWord rs1, CfuWord rs2) {
 #if defined(__riscv)
-  uint32_t result = 0;
-  __asm__ volatile(".insn r 0x0B, 0x0, 0x05, %0, %1, %2"
-                   : "=r"(result)
-                   : "r"(rs1), "r"(rs2));
-  return result;
+  return cfu_op0_hw(CFU_FUNCT7_SCALAR_COMPUTE, rs1, rs2);
 #else
   return software_cfu(rs1, rs2, kCfuScalarCompute);
 #endif
@@ -18,11 +14,7 @@ uint32_t cfu_scalar_compute_hw(CfuWord rs1, CfuWord rs2) {
 
 uint32_t cfu_axi_read_hw(CfuWord addr) {
 #if defined(__riscv)
-  uint32_t result = 0;
-  __asm__ volatile(".insn r 0x0B, 0x1, 0x00, %0, %1, x0"
-                   : "=r"(result)
-                   : "r"(addr));
-  return result;
+  return cfu_op1_hw(CFU_FUNCT7_AXI, addr, 0);
 #else
   return software_cfu(addr, 0, kCfuAxiRead);
 #endif
@@ -30,10 +22,7 @@ uint32_t cfu_axi_read_hw(CfuWord addr) {
 
 void cfu_axi_write_hw(CfuWord addr, CfuWord data) {
 #if defined(__riscv)
-  __asm__ volatile(".insn r 0x0B, 0x2, 0x00, x0, %0, %1"
-                   :
-                   : "r"(addr), "r"(data)
-                   : "memory");
+  (void)cfu_op2_hw(CFU_FUNCT7_AXI, addr, data);
 #else
   software_cfu(addr, data, kCfuAxiWrite);
 #endif
