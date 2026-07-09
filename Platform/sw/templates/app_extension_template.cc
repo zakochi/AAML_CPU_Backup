@@ -1,14 +1,14 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "npu_ops.h"
+#include "accel_ops.h"
 #include "perf.h"
 
 void my_extension_test(void) {
   const uint32_t a = 1;
   const uint32_t b = 2;
   uint64_t start = perf_get_mcycle64();
-  uint32_t result = npu_scalar_compute(a, b);
+  uint32_t result = accel_scalar_compute(a, b);
   uint64_t cycles = perf_get_mcycle64() - start;
 
   printf("my_extension_test result=%u cycles=", (unsigned)result);

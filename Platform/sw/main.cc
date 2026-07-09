@@ -15,7 +15,7 @@ namespace {
 void do_system_info(void) {
   printf("[INFO] MicroBlaze V RISC-V SoC (DRAM Mode)\n");
   printf("[INFO] DDR2 Range: 0x60000000 - 0x67FFFFFF\n");
-  printf("[INFO] NPU custom instruction interface: CUSTOM-0\n");
+  printf("[INFO] Custom accelerator interface: CUSTOM-0\n");
   printf("[INFO] Clock: %u Hz\n", (unsigned)PLATFORM_CLOCK_HZ);
   printf("[INFO] Active model: %s\n", MODEL_NAME);
   perf_print_now();
