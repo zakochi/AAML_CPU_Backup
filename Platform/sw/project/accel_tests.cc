@@ -66,6 +66,30 @@ void accel_run_functional_test(void) {
   }
 }
 
+void accel_run_scalar_benchmark(void) {
+  const uint32_t loops = ACCEL_BENCH_LOOPS;
+  volatile uint32_t checksum = 0;
+
+  printf("\n>>> STARTING SCALAR CUSTOM INSTRUCTION BENCHMARK (%u loops)...\n",
+         (unsigned)loops);
+  uint64_t start = perf_get_mcycle64();
+
+  for (uint32_t i = 0; i < loops; ++i) {
+    checksum += accel_scalar_compute(i, i + 1);
+  }
+
+  uint64_t elapsed = perf_get_mcycle64() - start;
+  printf("[SUCCESS] Scalar benchmark complete! checksum=%u cycles=",
+         (unsigned)checksum);
+  perf_print_cycles(elapsed);
+  if (loops != 0) {
+    printf(" cycles/op=");
+    perf_print_cycles(elapsed / loops);
+  }
+  putchar('\n');
+  perf_print_time_ms(elapsed);
+}
+
 void accel_run_mixed_stress_test(void) {
   const uint32_t loops = ACCEL_STRESS_LOOPS;
   volatile uint32_t* test_addr =

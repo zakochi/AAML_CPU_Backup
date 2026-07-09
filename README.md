@@ -21,7 +21,9 @@
    語意化 wrapper，底層可用 `cfu_op0..cfu_op7(funct7, rs1, rs2)` 對應
    CUSTOM-0 的 `funct3/funct7`。
 4. 跑功能和效能測試: 在 `Platform/sw/project/user_menu.cc` 或
-   `accel_tests.cc` 加測試，使用 `perf_get_mcycle64()` 量 cycle。可先跑
+   `accel_tests.cc` 加測試，使用 `perf_get_mcycle64()` 量 cycle。firmware
+   menu 內建 project menu `b` 可以跑 scalar custom-instruction benchmark，
+   project menu `3` 會跑目前選定模型並印出 inference cycles。可先跑
    `make validate`，不需要本機已有 RISC-V toolchain。
 
 關於此平台 accelerator interface 的知識:

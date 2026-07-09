@@ -10,7 +10,9 @@ namespace {
 const MenuItem kProjectItems[] = {
     MENU_ITEM('1', "Accelerator functional test", accel_run_functional_test),
     MENU_ITEM('2', "Accelerator mixed stress test", accel_run_mixed_stress_test),
-    MENU_ITEM('3', "TFLM inference and verification", tflm_run_inference),
+    MENU_ITEM('b', "Accelerator scalar benchmark", accel_run_scalar_benchmark),
+    MENU_ITEM('3', "TFLM inference, verification, and cycles",
+              tflm_run_inference),
     MENU_ITEM('u', "User extension menu", user_menu_run),
     MENU_END,
 };

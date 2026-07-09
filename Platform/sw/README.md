@@ -30,6 +30,7 @@ PLATFORM_CLOCK_HZ=50000000
 CBO_BLOCK_BYTES=64
 MODEL_TOLERANCE=2
 ACCEL_STRESS_LOOPS=10000
+ACCEL_BENCH_LOOPS=10000
 USE_SOFTWARE_CFU=1
 TARGET_PREFIX=riscv64-unknown-elf
 HOST_CXX=c++
@@ -73,7 +74,8 @@ Common knobs:
 make PLATFORM_CLOCK_HZ=75000000
 make CBO_BLOCK_BYTES=32
 make MODEL_TOLERANCE=4
-make ACCEL_STRESS_LOOPS=50000 ACCEL_STRESS_PROGRESS_INTERVAL=5000
+make ACCEL_STRESS_LOOPS=50000 ACCEL_BENCH_LOOPS=50000
+make ACCEL_STRESS_PROGRESS_INTERVAL=5000
 ```
 
 UART base/offset/mask values, reboot delay, tensor arena defaults, and
@@ -179,6 +181,23 @@ static inline uint32_t accel_my_op(uint32_t a, uint32_t b) {
 
 Use `templates/custom_instruction_template.cc` for a standalone performance
 test skeleton.
+
+## Running Performance Tests
+
+The firmware menu has three built-in performance paths:
+
+1. Main menu `2` runs low-level performance counter checks.
+2. Main menu `1`, then project menu `b`, runs the scalar custom-instruction
+   benchmark through `project/accel_ops.h`.
+3. Main menu `1`, then project menu `3`, runs the selected TFLM model and prints
+   inference cycles and time.
+
+Tune the default loop counts at build time:
+
+```sh
+make ACCEL_BENCH_LOOPS=100000
+make ACCEL_STRESS_LOOPS=100000 ACCEL_STRESS_PROGRESS_INTERVAL=10000
+```
 
 ## Adding Or Switching Models
 
