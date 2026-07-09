@@ -39,6 +39,29 @@ main裡面目前的方式也很好但如果有n條客製化NPU指令，就變成
 6. main.c可以乾淨點
 7. CBO包裝
 
+### 目前軟體結構
+`Platform/sw` 已依照 CFU-Playground 的方向整理成較小的模組:
+1. `main.cc` 只保留主選單、系統資訊和重啟入口。
+2. `app/menu.*` 提供 CFU-Playground 風格的 UART menu。
+3. `app/perf.*` 包裝 `mcycle/mcycleh` 和簡單量測選單。
+4. `app/cfu.*` 將 CUSTOM-0 指令統一成 `cfu_op(rs1, rs2, func)`。
+5. `app/cbo.h` 包裝 Zicbom clean/invalidate 和 range helper。
+6. `project/npu_ops.h` 和 `project/npu_tests.*` 放 NPU 語意包裝、functional/stress 測試。
+7. `project/user_menu.*` 是新增實驗和 demo 的主要入口。
+8. `app/tflm_runner.*` 放 TFLM 模型載入和 cycle 量測。
+9. `models/<profile>_profile.cc` 放模型專用的 input fixture / output verification，避免修改 common runner。
+
+模型可以在 build 時指定，例如:
+```sh
+cd Platform/sw
+make config
+make validate
+make MODEL_FILE=ad01_int8.tflite
+make MODEL_FILE=ad01_int8.tflite MODEL_PROFILE=ad01
+```
+常用設定也可以 copy `project.mk.example` 成 `project.mk` 後固定下來。
+更多軟體開發方式可以看 `Platform/sw/README.md`，裡面有 build target、模型/profile 選擇、templates、menu 擴充、CUSTOM-0 helper 和 CBO 使用方式。
+
 ## 硬體優化目標
 1. 移除FPU
 2. 移除FPU遺留邏輯

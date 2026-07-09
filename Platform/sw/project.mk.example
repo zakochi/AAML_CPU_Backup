@@ -1,0 +1,25 @@
+# Copy this file to project.mk for local software build settings.
+# project.mk is ignored by git.
+
+# Select a bundled model and model profile.
+MODEL_FILE := vww_96_int8.tflite
+MODEL_PROFILE := auto
+
+# Common bring-up knobs.
+TENSOR_ARENA_SIZE := 262144
+PLATFORM_CLOCK_HZ := 50000000
+CBO_BLOCK_BYTES := 64
+MODEL_TOLERANCE := 2
+NPU_STRESS_LOOPS := 10000
+NPU_STRESS_PROGRESS_INTERVAL := 2500
+
+# Toolchain and host syntax-check compiler.
+TARGET_PREFIX := riscv64-unknown-elf
+HOST_CXX := c++
+
+# Use software Cfu() fallback instead of CUSTOM-0 instructions.
+USE_SOFTWARE_CFU := 0
+
+# Add local source files or preprocessor definitions when needed.
+# APP_EXTRA_SRCS += project/my_extra_file.cc
+# APP_DEFINES += -DMY_FLAG=1

@@ -1,20 +1,22 @@
 // sw/syscalls.c
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <sys/stat.h>
 
-#define UART_BASE      0x40005000
-#define UART_RX_FIFO   (*(volatile uint32_t *)(UART_BASE + 0x00))
-#define UART_TX_FIFO   (*(volatile uint32_t *)(UART_BASE + 0x04))
-#define UART_STATUS    (*(volatile uint32_t *)(UART_BASE + 0x08))
+#include "platform_config.h"
+
+#define UART_RX_FIFO   (*(volatile uint32_t *)(PLATFORM_UART_BASE + PLATFORM_UART_RX_OFFSET))
+#define UART_TX_FIFO   (*(volatile uint32_t *)(PLATFORM_UART_BASE + PLATFORM_UART_TX_OFFSET))
+#define UART_STATUS    (*(volatile uint32_t *)(PLATFORM_UART_BASE + PLATFORM_UART_STATUS_OFFSET))
 
 void uart_putc(char c) {
-    while (UART_STATUS & 0x08); 
+    while (UART_STATUS & PLATFORM_UART_TX_FULL_MASK);
     UART_TX_FIFO = c;
 }
 
-char uart_getc() {
-    while (!(UART_STATUS & 0x01)); 
+char uart_getc(void) {
+    while (!(UART_STATUS & PLATFORM_UART_RX_READY_MASK));
     return (char)UART_RX_FIFO;
 }
 
@@ -82,6 +84,10 @@ uint64_t get_system_cycles() {
     return ((uint64_t)cycles_hi << 32) | cycles_lo;
 }
 
+uint64_t get_cycles() {
+    return get_system_cycles();
+}
+
 void DebugLog(const char* s) {
-	printf(s);
+	printf("%s", s);
 }

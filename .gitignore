@@ -3,3 +3,4 @@ utils_1/
 *.git/
 .Xil/
 build/
+Platform/sw/project.mk
