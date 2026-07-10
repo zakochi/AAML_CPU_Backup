@@ -12,7 +12,8 @@
 配套的Software平台現在整理成比較容易擴充的架構，可用於 HW/SW 結合跑 TFLM 的模型推論加速，也能單純測試 custom accelerator 的功能性。<br></br>
 
 ### 快速開發流程
-1. 選模型: 在 `Platform/sw` 執行 `make models`、`make profiles`，再用
+1. 選模型: `.tflite` 放在 `Platform/sw/models`。在 `Platform/sw` 執行
+   `make models`、`make profiles`，再用
    `make MODEL_FILE=<model>.tflite MODEL_PROFILE=<profile>` 選定模型。
 2. 寫硬體: 目前範例是 `Platform/hw/srcs/NPU.v`，新的 custom ML
    accelerator 可以從 `Platform/hw/templates/custom_accelerator_template.v`
@@ -67,7 +68,7 @@ Platform/Reference可以忽略甚至移除，我原本想把乾淨的NPU.v放裡
 6. `project/accel_ops.h` 和 `project/accel_tests.*` 放 accelerator 語意包裝、functional/stress 測試。
 7. `project/user_menu.*` 是新增實驗和 demo 的主要入口。
 8. `app/tflm_runner.*` 放 TFLM 模型載入和 cycle 量測。
-9. `models/<profile>_profile.cc` 放模型專用的 input fixture / output verification，避免修改 common runner。
+9. `models/` 放 `.tflite` 檔和 `<profile>_profile.cc`，後者負責模型專用的 input fixture / output verification，避免修改 common runner。
 
 模型可以在 build 時指定，例如:
 ```sh

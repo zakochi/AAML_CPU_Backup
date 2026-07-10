@@ -21,18 +21,10 @@ void do_system_info(void) {
   perf_print_now();
 }
 
-void do_reboot(void) {
-  printf("Rebooting to ROM Download Mode...\n");
-  for (volatile uint32_t i = 0; i < PLATFORM_REBOOT_DELAY_LOOPS; ++i) {
-  }
-  runtime_reboot();
-}
-
 const MenuItem kMainItems[] = {
     MENU_ITEM('1', "Project menu", do_proj_menu),
     MENU_ITEM('2', "Performance counter tests", perf_test_menu),
     MENU_ITEM('i', "System info", do_system_info),
-    MENU_ITEM('r', "Reboot", do_reboot),
     MENU_SENTINEL,
 };
 

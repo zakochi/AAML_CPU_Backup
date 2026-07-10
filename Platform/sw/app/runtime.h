@@ -12,8 +12,6 @@ char uart_getc(void);
 }
 #endif
 
-static inline void runtime_reboot(void) {
-  ((void (*)(void))0x00000000)();
-}
+
 
 #endif  // PLATFORM_SW_APP_RUNTIME_H_

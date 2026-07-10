@@ -2,7 +2,8 @@
 
 This directory is organized to feel similar to CFU-Playground: stable framework
 code lives in `app/`, project-specific code lives in `project/`, model profiles
-live in `models/`, and generated files are written under `../build/sw`.
+and `.tflite` model files live in `models/`, and generated files are written
+under `../build/sw`.
 
 ## Quick Start
 
@@ -23,6 +24,7 @@ make run MODEL_FILE=ad01_int8.tflite
 Useful build overrides:
 
 ```sh
+MODEL_DIR=models
 MODEL_FILE=ad01_int8.tflite
 MODEL_PROFILE=ad01
 TENSOR_ARENA_SIZE=262144
@@ -120,8 +122,9 @@ Makefile overrides for normal bring-up and keep source edits for new defaults.
 custom instruction wrappers. `npu_ops.h` and `npu_tests.h` remain as
 compatibility wrappers for the current NPU example.
 
-`models/` owns model profiles. The Makefile compiles exactly one profile into
-the firmware, selected by `MODEL_PROFILE` or inferred from `MODEL_FILE`.
+`models/` owns bundled `.tflite` model files and model profiles. The Makefile
+compiles exactly one profile into the firmware, selected by `MODEL_PROFILE` or
+inferred from `MODEL_FILE`.
 
 `templates/` contains starting points for new model profiles and extra app
 sources.
@@ -209,6 +212,9 @@ make profiles
 make templates
 ```
 
+Bare `MODEL_FILE` values are resolved under `MODEL_DIR`, which defaults to
+`models`.
+
 Build a specific model:
 
 ```sh
@@ -224,7 +230,7 @@ make MODEL_FILE=ad01_int8.tflite MODEL_PROFILE=ad01
 
 When adding a new `.tflite` file:
 
-1. Copy it into `Platform/sw`.
+1. Copy it into `Platform/sw/models`.
 2. Register any missing kernels in `project/tflm_ops.cc`.
 3. Start with `MODEL_PROFILE=generic_zero` if fixture data is not ready.
 4. Add `models/<profile>_profile.cc` when the model needs fixture input,

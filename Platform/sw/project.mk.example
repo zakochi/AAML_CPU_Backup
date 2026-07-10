@@ -1,7 +1,8 @@
 # Copy this file to project.mk for local software build settings.
 # project.mk is ignored by git.
 
-# Select a bundled model and model profile.
+# Select a bundled model from MODEL_DIR and its model profile.
+MODEL_DIR := models
 MODEL_FILE := vww_96_int8.tflite
 MODEL_PROFILE := auto
 

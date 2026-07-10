@@ -11,6 +11,7 @@ COPY    = cp -r
 PROJECT_CONFIG ?= project.mk
 
 # --- Set Model ---
+MODEL_DIR ?= models
 MODEL_FILE ?= vww_96_int8.tflite
 MODEL_PROFILE ?= auto
 TENSOR_ARENA_SIZE ?= 262144
@@ -37,10 +38,12 @@ endif
 
 BUILD_DIR      ?= $(abspath ../build/sw)
 GEN_DIR        := $(BUILD_DIR)/generated
-MODEL_STAMP    := $(BUILD_DIR)/model_data.$(notdir $(MODEL_FILE)).stamp
+MODEL_RESOLVED := $(if $(findstring /,$(MODEL_FILE)),$(MODEL_FILE),$(MODEL_DIR)/$(MODEL_FILE))
+MODEL_PATH     := $(MODEL_RESOLVED)
+MODEL_ABS      := $(abspath $(MODEL_PATH))
+MODEL_BASENAME := $(notdir $(MODEL_PATH))
+MODEL_STAMP    := $(BUILD_DIR)/model_data.$(MODEL_BASENAME).stamp
 MODEL_SELECTED := $(BUILD_DIR)/model_data.selected
-MODEL_ABS      := $(abspath $(MODEL_FILE))
-MODEL_BASENAME := $(notdir $(MODEL_FILE))
 MICRO_SRC_DIR := $(BUILD_DIR)/src
 TFLM_OBJ_DIR  := $(BUILD_DIR)/obj
 TFLM_SRC_ROOT := $(abspath ../../tflite-micro)
@@ -48,7 +51,7 @@ TFLM_SRC_ROOT := $(abspath ../../tflite-micro)
 TFLM_PATCH_DIR := tflm_patches
 APP_SRC_DIR := app
 PROJECT_SRC_DIR := project
-MODEL_PROFILE_DIR := models
+MODEL_PROFILE_DIR ?= models
 APP_EXTRA_SRCS ?=
 APP_DEFINES ?=
 
@@ -68,7 +71,7 @@ PROJECT_CONFIG_STATUS := $(if $(wildcard $(PROJECT_CONFIG)),$(PROJECT_CONFIG),no
 
 # RISC-V Compiled Params
 ARCH_FLAGS   := -march=rv32im -mabi=ilp32 -mcmodel=medany
-DEFINES      := -DMODEL_NAME=\"$(MODEL_FILE)\" \
+DEFINES      := -DMODEL_NAME=\"$(MODEL_BASENAME)\" \
                 -DTENSOR_ARENA_SIZE=$(TENSOR_ARENA_SIZE) \
                 -DPLATFORM_CLOCK_HZ=$(PLATFORM_CLOCK_HZ) \
                 -DCBO_BLOCK_BYTES=$(CBO_BLOCK_BYTES) \
@@ -125,6 +128,7 @@ help:
 	@printf "  make clean           Remove generated SW build files\n"
 	@printf "\n"
 	@printf "Useful overrides:\n"
+	@printf "  MODEL_DIR=models\n"
 	@printf "  MODEL_FILE=ad01_int8.tflite\n"
 	@printf "  MODEL_PROFILE=ad01\n"
 	@printf "  TENSOR_ARENA_SIZE=262144\n"
@@ -142,8 +146,8 @@ help:
 	@printf "Extension entry point: edit project/user_menu.cc for project-specific tests.\n"
 
 models:
-	@printf "Available models in Platform/sw:\n"
-	@find . -maxdepth 1 -name "*.tflite" -print | sed 's#^\./#  #'
+	@printf "Available models in Platform/sw/$(MODEL_DIR):\n"
+	@find $(MODEL_DIR) -maxdepth 1 -name "*.tflite" -print | sed 's#^$(MODEL_DIR)/#  #'
 
 profiles:
 	@printf "Available model profiles in Platform/sw/models:\n"
@@ -160,7 +164,10 @@ templates:
 config:
 	@printf "PROJECT_CONFIG=%s\n" "$(PROJECT_CONFIG_STATUS)"
 	@printf "TARGET_PREFIX=%s\n" "$(TARGET_PREFIX)"
+	@printf "MODEL_DIR=%s\n" "$(MODEL_DIR)"
 	@printf "MODEL_FILE=%s\n" "$(MODEL_FILE)"
+	@printf "MODEL_PATH=%s\n" "$(MODEL_PATH)"
+	@printf "MODEL_BASENAME=%s\n" "$(MODEL_BASENAME)"
 	@printf "MODEL_PROFILE=%s\n" "$(MODEL_PROFILE)"
 	@printf "SELECTED_MODEL_PROFILE=%s\n" "$(SELECTED_MODEL_PROFILE)"
 	@printf "MODEL_PROFILE_SRC=%s\n" "$(MODEL_PROFILE_SRC)"
@@ -191,9 +198,10 @@ check-env:
 	@command -v $(CXX) >/dev/null || { printf "ERROR: missing %s in PATH\n" "$(CXX)"; exit 1; }
 	@command -v $(OBJCOPY) >/dev/null || { printf "ERROR: missing %s in PATH\n" "$(OBJCOPY)"; exit 1; }
 	@test -d "$(TFLM_SRC_ROOT)/tensorflow" || { printf "ERROR: missing TFLM source at %s\n" "$(TFLM_SRC_ROOT)"; exit 1; }
-	@test -f "$(MODEL_FILE)" || { printf "ERROR: missing model file %s\n" "$(MODEL_FILE)"; exit 1; }
+	@test -d "$(MODEL_DIR)" || { printf "ERROR: missing model directory %s\n" "$(MODEL_DIR)"; exit 1; }
+	@test -f "$(MODEL_PATH)" || { printf "ERROR: missing model file %s\n" "$(MODEL_PATH)"; exit 1; }
 	@test -f "$(MODEL_PROFILE_SRC)" || { printf "ERROR: missing model profile source %s\n" "$(MODEL_PROFILE_SRC)"; exit 1; }
-	@printf "OK: toolchain=%s, model=%s, profile=%s, arena=%s bytes, clock=%s Hz\n" "$(TARGET_PREFIX)" "$(MODEL_FILE)" "$(SELECTED_MODEL_PROFILE)" "$(TENSOR_ARENA_SIZE)" "$(PLATFORM_CLOCK_HZ)"
+	@printf "OK: toolchain=%s, model=%s, profile=%s, arena=%s bytes, clock=%s Hz\n" "$(TARGET_PREFIX)" "$(MODEL_PATH)" "$(SELECTED_MODEL_PROFILE)" "$(TENSOR_ARENA_SIZE)" "$(PLATFORM_CLOCK_HZ)"
 
 host-check:
 	$(HOST_CXX) -std=c++11 -Wall -Wextra -DHOST_BUILD -DCFU_SOFTWARE_DEFINED \
@@ -228,15 +236,15 @@ $(MODEL_SELECTED):
 	@$(MKDIR) $(BUILD_DIR) $(GEN_DIR)
 	@touch $@
 
-$(MODEL_STAMP): FORCE $(MODEL_FILE) Makefile $(MODEL_SELECTED)
+$(MODEL_STAMP): FORCE $(MODEL_PATH) Makefile $(MODEL_SELECTED)
 	@$(MKDIR) $(BUILD_DIR) $(GEN_DIR)
 	@if [ ! -f "$(BUILD_DIR)/model_data.c" ] || \
 		[ ! -f "$(GEN_DIR)/model_data.h" ] || \
 		[ "$$(cat "$(MODEL_SELECTED)" 2>/dev/null)" != "$(MODEL_ABS)" ] || \
-		[ "$(MODEL_FILE)" -nt "$(BUILD_DIR)/model_data.c" ] || \
+		[ "$(MODEL_PATH)" -nt "$(BUILD_DIR)/model_data.c" ] || \
 		[ "Makefile" -nt "$(BUILD_DIR)/model_data.c" ]; then \
-		echo ">> Generating model_data.h and model_data.c from $(MODEL_FILE)..."; \
-		python3 -c "import sys; data=open(sys.argv[1],'rb').read(); print('#include <stdint.h>\n#include \"model_data.h\"\nconst uint8_t g_model[] __attribute__((aligned(16))) = {'); print(','.join([hex(b) for b in data])); print('};\nconst int g_model_len = ' + str(len(data)) + ';')" "$(MODEL_FILE)" > "$(BUILD_DIR)/model_data.c"; \
+		echo ">> Generating model_data.h and model_data.c from $(MODEL_PATH)..."; \
+		python3 -c "import sys; data=open(sys.argv[1],'rb').read(); print('#include <stdint.h>\n#include \"model_data.h\"\nconst uint8_t g_model[] __attribute__((aligned(16))) = {'); print(','.join([hex(b) for b in data])); print('};\nconst int g_model_len = ' + str(len(data)) + ';')" "$(MODEL_PATH)" > "$(BUILD_DIR)/model_data.c"; \
 		echo "#ifndef PLATFORM_SW_GENERATED_MODEL_DATA_H_" > "$(GEN_DIR)/model_data.h"; \
 		echo "#define PLATFORM_SW_GENERATED_MODEL_DATA_H_" >> "$(GEN_DIR)/model_data.h"; \
 		echo "#include <stdint.h>" >> "$(GEN_DIR)/model_data.h"; \
