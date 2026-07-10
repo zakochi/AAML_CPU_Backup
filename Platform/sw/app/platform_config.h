@@ -37,10 +37,6 @@
 #define PLATFORM_DEFAULT_TENSOR_ARENA_SIZE (256u * 1024u)
 #endif
 
-#ifndef CBO_BLOCK_BYTES
-#define CBO_BLOCK_BYTES 64u
-#endif
-
 #ifndef MODEL_TOLERANCE
 #define MODEL_TOLERANCE 2
 #endif

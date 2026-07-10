@@ -8,16 +8,9 @@ MODEL_PROFILE := auto
 
 # Common bring-up knobs.
 TENSOR_ARENA_SIZE := 262144
-PLATFORM_CLOCK_HZ := 50000000
-CBO_BLOCK_BYTES := 64
-MODEL_TOLERANCE := 2
-ACCEL_STRESS_LOOPS := 10000
-ACCEL_BENCH_LOOPS := 10000
-ACCEL_STRESS_PROGRESS_INTERVAL := 2500
 
-# Toolchain and host syntax-check compiler.
+# Embedded toolchain prefix.
 TARGET_PREFIX := riscv64-unknown-elf
-HOST_CXX := c++
 
 # Use software Cfu() fallback instead of CUSTOM-0 instructions.
 USE_SOFTWARE_CFU := 0

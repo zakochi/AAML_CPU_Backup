@@ -1,10 +1,5 @@
 # CUSTOM SoC Software
 
-This directory is organized to feel similar to CFU-Playground: stable framework
-code lives in `app/`, project-specific code lives in `project/`, model profiles
-and `.tflite` model files live in `models/`, and generated files are written
-under `../build/sw`.
-
 ## Quick Start
 
 ```sh
@@ -13,8 +8,6 @@ make config
 make models
 make profiles
 make templates
-make host-check
-make host-tflm-check
 make validate
 make check-env
 make MODEL_FILE=ad01_int8.tflite
@@ -28,14 +21,8 @@ MODEL_DIR=models
 MODEL_FILE=ad01_int8.tflite
 MODEL_PROFILE=ad01
 TENSOR_ARENA_SIZE=262144
-PLATFORM_CLOCK_HZ=50000000
-CBO_BLOCK_BYTES=64
-MODEL_TOLERANCE=2
-ACCEL_STRESS_LOOPS=10000
-ACCEL_BENCH_LOOPS=10000
 USE_SOFTWARE_CFU=1
 TARGET_PREFIX=riscv64-unknown-elf
-HOST_CXX=c++
 APP_DEFINES="-DMY_FLAG=1"
 APP_EXTRA_SRCS="project/my_extra_file.cc"
 ```
@@ -54,41 +41,11 @@ make MODEL_FILE=ad01_int8.tflite MODEL_PROFILE=ad01
 `make config` prints the resolved build settings, including the selected model
 profile source.
 
-`make validate` runs the host-side checks and list/config targets that are safe
-to use before the RISC-V embedded toolchain is installed.
-
-`make host-check` syntax-checks the non-TFLM app/menu/custom-op code using the
-host C++ compiler.
-
-`make host-tflm-check` syntax-checks `app/model_io.*`, `app/tflm_runner.*`,
-`project/tflm_ops.*`, and the selected model profile against the prepared TFLM
-source tree. These host checks do not replace the embedded build, but they catch
-common extension mistakes before the RISC-V toolchain is installed.
-
-## Platform Configuration
-
-Default platform constants live in `app/platform_config.h`. Override them from
-the Makefile command line or `APP_DEFINES` instead of editing framework code.
-
-Common knobs:
-
-```sh
-make PLATFORM_CLOCK_HZ=75000000
-make CBO_BLOCK_BYTES=32
-make MODEL_TOLERANCE=4
-make ACCEL_STRESS_LOOPS=50000 ACCEL_BENCH_LOOPS=50000
-make ACCEL_STRESS_PROGRESS_INTERVAL=5000
-```
-
-UART base/offset/mask values, reboot delay, tensor arena defaults, and
-accelerator test buffer sizing are also centralized in `app/platform_config.h`.
+`make validate` prints the resolved build settings and lists available models,
+profiles, and templates. It does not build or require the RISC-V embedded
+toolchain.
 
 ## File Layout
-
-`main.cc` is intentionally small. It owns only the top-level menu, system info,
-and reboot entry.
-
-`app/menu.*` provides the UART menu runner.
 
 `project/proj_menu.*` owns the built-in project menu entries for accelerator
 tests, TFLM inference, and the user extension menu.
@@ -98,39 +55,7 @@ test, demo, or experiment.
 
 `app/cfu.*`, `app/software_cfu.*`, and `project/accel_ops.h` wrap CUSTOM-0
 access. Use `cfu_op0..cfu_op7(funct7, rs1, rs2)` for raw CUSTOM-0 fields, or
-add semantic helpers in `accel_ops.h`. The legacy `cfu_op(rs1, rs2, func)` API
-is still available for the current example operations.
-
-`app/cbo.h` wraps Zicbom clean/invalidate operations. Use these helpers before
-or after accelerator AXI accesses that interact with cached DRAM data.
-
-`app/perf.*` wraps `mcycle/mcycleh` and contains a small performance test menu.
-
-`app/tflm_runner.*` owns model loading, tensor arena setup, inference, and
-cycle measurement.
-
-`project/tflm_ops.*` owns TFLM operator resolver registration. Add operators here
-when a new model uses a kernel that is not currently registered.
-
-`app/model_io.*` owns the common input/output flow. Model-specific fixture data
-and golden-output behavior live in `models/<profile>_profile.cc`.
-
-`app/platform_config.h` owns board-level defaults and test tunables. Prefer
-Makefile overrides for normal bring-up and keep source edits for new defaults.
-
-`project/` owns this platform's accelerator-specific menus, tests, and semantic
-custom instruction wrappers. `npu_ops.h` and `npu_tests.h` remain as
-compatibility wrappers for the current NPU example.
-
-`models/` owns bundled `.tflite` model files and model profiles. The Makefile
-compiles exactly one profile into the firmware, selected by `MODEL_PROFILE` or
-inferred from `MODEL_FILE`.
-
-`templates/` contains starting points for new model profiles and extra app
-sources.
-
-`tflm_patches/` contains overlay files copied into the prepared TFLM source
-tree before compatibility fixes run.
+add semantic helpers in `accel_ops.h`.
 
 ## Adding A Menu Item
 
@@ -183,7 +108,8 @@ static inline uint32_t accel_my_op(uint32_t a, uint32_t b) {
 ```
 
 Use `templates/custom_instruction_template.cc` for a standalone performance
-test skeleton.
+test skeleton. After adding template-based code, run `make validate`; if the
+extension adds a new menu item, register its function in `project/user_menu.cc`.
 
 ## Running Performance Tests
 
@@ -194,13 +120,6 @@ The firmware menu has three built-in performance paths:
    benchmark through `project/accel_ops.h`.
 3. Main menu `1`, then project menu `3`, runs the selected TFLM model and prints
    inference cycles and time.
-
-Tune the default loop counts at build time:
-
-```sh
-make ACCEL_BENCH_LOOPS=100000
-make ACCEL_STRESS_LOOPS=100000 ACCEL_STRESS_PROGRESS_INTERVAL=10000
-```
 
 ## Adding Or Switching Models
 
@@ -214,6 +133,14 @@ make templates
 
 Bare `MODEL_FILE` values are resolved under `MODEL_DIR`, which defaults to
 `models`.
+
+Bundled profiles:
+
+```text
+ad01          ad01_int8.tflite fixture input and golden output
+vww_96        vww_96_int8.tflite zero input, output verification skipped
+generic_zero  fallback for new models while bring-up data is not ready
+```
 
 Build a specific model:
 
@@ -233,11 +160,15 @@ When adding a new `.tflite` file:
 1. Copy it into `Platform/sw/models`.
 2. Register any missing kernels in `project/tflm_ops.cc`.
 3. Start with `MODEL_PROFILE=generic_zero` if fixture data is not ready.
-4. Add `models/<profile>_profile.cc` when the model needs fixture input,
-   generated input, custom tensor handling, or golden-output verification.
-   Use `templates/model_profile_template.cc` as the starting pattern.
-5. Set `TENSOR_ARENA_SIZE` if the model needs a larger arena.
-6. Run `make validate`, then build with `make MODEL_FILE=<name>.tflite`.
+4. Create `models/<profile>_profile.cc` when the model needs fixture input,
+   generated input, custom tensor handling, or golden-output verification. Use
+   `templates/model_profile_template.cc` as the starting pattern.
+5. Implement `const ModelProfile* model_profile_get(void)`.
+6. For simple int8 models, fill `input_data` and `expected_output`.
+7. For custom tensor types, generated inputs, or multi-output checks, set the
+   `prepare_input` or `verify_output` function pointers.
+8. Set `TENSOR_ARENA_SIZE` if the model needs a larger arena.
+9. Run `make validate`, then build with `make MODEL_FILE=<name>.tflite`.
 
 To make a new model auto-select its profile, add a `MODEL_BASENAME` mapping in
 the Makefile.

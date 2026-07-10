@@ -24,8 +24,7 @@
 4. 跑功能和效能測試: 在 `Platform/sw/project/user_menu.cc` 或
    `accel_tests.cc` 加測試，使用 `perf_get_mcycle64()` 量 cycle。firmware
    menu 內建 project menu `b` 可以跑 scalar custom-instruction benchmark，
-   project menu `3` 會跑目前選定模型並印出 inference cycles。可先跑
-   `make validate`，不需要本機已有 RISC-V toolchain。
+   project menu `3` 會跑目前選定模型並印出 inference cycles。
 
 關於此平台 accelerator interface 的知識:
 1. 如果沒有一定要按造P-ext的ISA規定，其實這個 accelerator interface 的設計就能做到P-ext要做的事，只要使用CPU interface就好。
@@ -45,8 +44,7 @@ Platform/Reference可以忽略甚至移除，我原本想把乾淨的NPU.v放裡
 客製化指令的方式可以參考 CFU-Playground。軟體現在提供兩層 API:
 1. `cfu_op0..cfu_op7(funct7, rs1, rs2)` 直接對應 CUSTOM-0 的 raw
    `funct3/funct7` 欄位，適合新增 accelerator instruction。
-2. `project/accel_ops.h` 放語意化 wrapper，讓 model kernel、menu test 和
-   performance test 不需要散落 raw function number。
+2. `project/accel_ops.h` 放語意化 wrapper。
 
 ## 軟體需要進一步處理的東西
 這裡可以參考CFU_Playground，以下我會列一些點做參考
@@ -64,11 +62,12 @@ Platform/Reference可以忽略甚至移除，我原本想把乾淨的NPU.v放裡
 2. `app/menu.*` 提供 CFU-Playground 風格的 UART menu。
 3. `app/perf.*` 包裝 `mcycle/mcycleh` 和簡單量測選單。
 4. `app/cfu.*` 將 CUSTOM-0 指令統一成 `cfu_op(rs1, rs2, func)`。
-5. `app/cbo.h` 包裝 Zicbom clean/invalidate 和 range helper。
+5. `app/cbo.h` 包裝單一位址的 Zicbom clean/invalidate helper。
 6. `project/accel_ops.h` 和 `project/accel_tests.*` 放 accelerator 語意包裝、functional/stress 測試。
 7. `project/user_menu.*` 是新增實驗和 demo 的主要入口。
 8. `app/tflm_runner.*` 放 TFLM 模型載入和 cycle 量測。
 9. `models/` 放 `.tflite` 檔和 `<profile>_profile.cc`，後者負責模型專用的 input fixture / output verification，避免修改 common runner。
+10. `runtime/` 放 bare-metal startup、linker script 和 libc syscall glue。
 
 模型可以在 build 時指定，例如:
 ```sh

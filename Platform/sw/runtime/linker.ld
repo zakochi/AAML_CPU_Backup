@@ -1,4 +1,4 @@
-/* sw/linker.ld */
+/* sw/runtime/linker.ld */
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
