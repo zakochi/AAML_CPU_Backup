@@ -1,6 +1,0 @@
-#ifndef PLATFORM_SW_PROJECT_USER_MENU_H_
-#define PLATFORM_SW_PROJECT_USER_MENU_H_
-
-void user_menu_run(void);
-
-#endif  // PLATFORM_SW_PROJECT_USER_MENU_H_
