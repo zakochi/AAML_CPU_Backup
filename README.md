@@ -6,3 +6,4 @@
 5. sw裡面只有一個upload.py，那是我最新為了配合jtag boot的全新版本。其他的你們透過cp的方式把你們要測試的tflm環境搬進去測試
 6. 為了配合DDR3的環境，SoC.v用我這一份，只要你們沒打算在.bd裡面新增新的IO port都沒不用去改。
 7. 記得也把tflm-micro cp一下
+8. arty a7和nexys a7有個不一樣的地方，就是arty a7不用按reset buttom就會自動boot了，我也不知道為啥。
