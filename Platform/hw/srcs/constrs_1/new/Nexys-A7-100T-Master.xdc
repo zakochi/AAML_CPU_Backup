@@ -16,11 +16,6 @@ set_property -dict {PACKAGE_PIN J5 IOSTANDARD LVCMOS33} [get_ports diag_led_rst]
 # LD2
 set_property -dict {PACKAGE_PIN T9 IOSTANDARD LVCMOS33} [get_ports diag_led_blink]
 
-
-# =========================================================
-# DDR3 SDRAM Pin Constraints (1.35V)
-# =========================================================
-
 # DDR3 Address
 set_property -dict { PACKAGE_PIN R2   IOSTANDARD SSTL135 } [get_ports { DDR3_addr[0] }]
 set_property -dict { PACKAGE_PIN M6   IOSTANDARD SSTL135 } [get_ports { DDR3_addr[1] }]
