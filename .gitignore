@@ -15,5 +15,5 @@ Platform/sw/main.cc
 Platform/sw/Makefile
 Platform/sw/project.mk.example
 Platform/sw/README.md
-
+tflite-micro/
 
