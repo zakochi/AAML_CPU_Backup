@@ -1,533 +1,137 @@
-//-----------------------------------------------------------------
-// LSU
-//-----------------------------------------------------------------
+`include "../riscv_defs.v"
 
-`include"../riscv_defs.v"
+module lsu (
+    input           clk_i, input rst_i,
+    input           opcode_valid_i,
+    input           is_dflush_i, input is_dinval_i, 
+    input           is_dwb_i,
+    input           ex_mem_rd_i, input ex_mem_wr_i,
+    input   [ 3:0]  ex_mem_ctrl_i,
+    input   [31:0]  lsu_addr_i, input [31:0] lsu_wdata_i, input [3:0] lsu_mask_i,
+    output  [31:0]  mem_addr_o, output [31:0] mem_data_o, output [ 3:0] mem_mask_o,
 
-module lsu
-#(
-     parameter QUEUE_LEN   = 2
-)
-(   
-     input           clk_i
-    ,input           rst_i
+    output          dcache_rd_o, output dcache_wr_o,
+    input   [31:0]  dcache_value_i, input dcache_vld_i, input dcache_rdy_i, 
+    output          dcache_dflush_o, output dcache_dinvalidate_o,
+    output          dcache_dwriteback_o, output icache_invalidate_o,
 
-    // fetch Interface
-    ,input         fetch_rd_i
-    ,input  [31:0] fetch_pc_i
-    ,output        fetch_valid_o
-    ,output [31:0] fetch_inst_o
+    output          cdma_rd_o, output cdma_wr_o,
+    input   [31:0]  cdma_value_i, input cdma_valid_i,
 
-    // data Interface
-    ,input   [31:0]  opcode_inst_i
-    ,input   [31:0]  opcode_ra_data_i
-    ,input   [31:0]  opcode_rb_data_i
-    ,input   [31:0]  opcode_fp_data_i
-    ,input           opcode_valid_i
-    
-    ,input   [31:0]  ex_mem_imm_i
-    ,input           ex_mem_rd_i
-    ,input           ex_mem_wr_i
-    ,input   [ 3:0]  ex_mem_ctrl_i
-
-    // mmu interface
-    // Icache
-    ,input           mmu_i_valid_i
-    ,input   [31:0]  mmu_i_inst_i
-    ,output          mmu_i_rd_o
-    ,output  [31:0]  mmu_i_pc_o
-
-    // Dcache
-    ,input   [31:0]  mmu_value_i
-    ,input           mmu_valid_i
-
-    ,output  [31:0]  mmu_addr_o
-    ,output  [31:0]  mmu_data_o
-    ,output          mmu_rd_o
-    ,output          mmu_wr_o
-    ,output  [ 3:0]  mmu_mask_o
-    ,output  reg     mmu_dflush_o
-    ,output  reg     mmu_dinvalidate_o
-    ,output  reg     mmu_dwriteback_o
-    ,output  reg     mmu_dzero_o
-    ,output  reg     mmu_iinvalidate_o
-        
-    // writeback interface
-    ,output  [31:0]  writeback_value_o
-    ,output          writeback_valid_o
-
-    // exception
-    ,input           mmu_read_excpt_i
-    ,input           mmu_write_excpt_i
-    ,input           mmu_exe_excpt_i
-    ,output          except_inst_ma
-    ,output          except_page_fault_load
-    ,output          except_page_fault_store
+    output  [31:0]  writeback_value_o, output writeback_valid_o
 );
 
-// --------------------------------------------
-//  Parameter Declaration
-// --------------------------------------------
+localparam D_ADDR_MIN = 32'h60000000;
+localparam D_ADDR_MAX = 32'hFFFFFFFF;
 
-localparam DATASIZE = 78;
+reg [1:0]  state_r;
+localparam ST_IDLE = 2'b00;
+localparam ST_WAIT = 2'b01;
 
-// --------------------------------------------
-//  Register Declaration
-// --------------------------------------------
+reg [31:0] req_addr_r, req_wdata_r;
+reg [ 3:0] req_mask_r, req_ctrl_r;
+reg        req_rd_r, req_wr_r;
+reg        cmi_flush_r, cmi_inv_r, cmi_wb_r;
+reg        is_cachable_r;
+reg        wait_1;
 
-// Opcode
-wire is_fp_inst = ex_mem_ctrl_i[3] && ex_mem_wr_i;
+wire req_flush  = (is_dflush_i);
+wire req_inv    = (is_dinval_i);
+wire req_wb     = (is_dwb_i);
 
-wire [31:0] ra_data = opcode_ra_data_i;
-wire [31:0] rb_data = (is_fp_inst)?opcode_fp_data_i:opcode_rb_data_i;
-
-// Memory
-wire [31:0] mem_addr_w;
-wire [31:0] mem_addr_w_4;
-reg [31:0] mem_data_wr_r;
-reg [31:0] mem_data_wr_u;
-reg        mem_rd_r;
-reg        mem_wr_r;
-reg [ 3:0] mem_mask_r;
-reg [ 3:0] mem_mask_u;
-
-wire [31:0] final_mem_addr_r;   // used to select final addr from mem_addr_w and u_addr
-wire [31:0] final_data_wr_r;    // used to select final data from mem_data_wr_r and mem_data_wr_u
-wire [ 3:0] final_mask_r;
-
-// Queue
-reg [ DATASIZE-1:0] data_q_i;
-
-// --------------------------------------------
-//  Wire Declaration
-// --------------------------------------------
-
-// Queue
-wire [DATASIZE-1:0] resp_data_o;
-wire                resp_accept_o;
-wire                resp_valid_o;
-wire        [31:0]  resp_addr;
-wire        [31:0]  resp_data;
-wire                resp_lb;
-wire                resp_lh;
-wire                resp_lw;
-wire                resp_signed;
-wire                resp_rd;
-wire                resp_wr;
-wire        [ 3:0]  resp_mask;
-wire        [ 2:0]  resp_u_type;
-wire                resp_addr_unaligned;
-
-// --------------------------------------------
-//  Opcode 
-// --------------------------------------------
-
-wire lb_inst = (ex_mem_ctrl_i[2:0] == 3'b001) & ex_mem_rd_i & opcode_valid_i;
-wire lh_inst = (ex_mem_ctrl_i[2:0] == 3'b010) & ex_mem_rd_i & opcode_valid_i;
-wire lw_inst = (ex_mem_ctrl_i[2:0] == 3'b100) & ex_mem_rd_i & opcode_valid_i;
-wire sb_inst = (ex_mem_ctrl_i[2:0] == 3'b001) & ex_mem_wr_i & opcode_valid_i;
-wire sh_inst = (ex_mem_ctrl_i[2:0] == 3'b010) & ex_mem_wr_i & opcode_valid_i;
-wire sw_inst = (ex_mem_ctrl_i[2:0] == 3'b100) & ex_mem_wr_i & opcode_valid_i;
-wire sign_inst = ex_mem_ctrl_i[3] & (ex_mem_ctrl_i[1:0] != 2'b11) & ex_mem_rd_i;
-
-wire ld_inst = ex_mem_rd_i & opcode_valid_i;
-wire st_inst = ex_mem_wr_i & opcode_valid_i;
-
-wire csrrw_inst = ((opcode_inst_i & `INST_CSRRW_MASK) == `INST_CSRRW) & opcode_valid_i;
-
-// CSRRW Instruction
-wire dflush, dwriteback, dinvalidate, dzero;
-wire iinvalidate;
-
-assign dflush       = ((opcode_inst_i[31:20] == `CSR_DFLUSH) && csrrw_inst)      || ((ex_mem_ctrl_i == 4'b0011) & opcode_valid_i);
-assign dwriteback   = ((opcode_inst_i[31:20] == `CSR_DWRITEBACK) && csrrw_inst)  || ((ex_mem_ctrl_i == 4'b1011) & opcode_valid_i);
-assign dinvalidate  = ((opcode_inst_i[31:20] == `CSR_DINVALIDATE) && csrrw_inst) || ((ex_mem_ctrl_i == 4'b0111) & opcode_valid_i);
-assign dzero        = ((ex_mem_ctrl_i == 4'b1111) & opcode_valid_i);
-assign iinvalidate  = ((opcode_inst_i & `INST_IFENCE_MASK) == `INST_IFENCE) && opcode_valid_i;
-
-// address calculation
-assign mem_addr_w = ra_data + ex_mem_imm_i;
-assign mem_addr_w_4 = ra_data + ex_mem_imm_i + 4;
-
-// --------------------------------------------
-//  Pipeline Register
-// --------------------------------------------
-
-reg lb_inst_p, lh_inst_p, lw_inst_p;
-reg sb_inst_p, sh_inst_p, sw_inst_p;
-reg sign_inst_p;
-reg ld_inst_p, st_inst_p;
-reg dflush_p, dwriteback_p, dinvalidate_p, dzero_p, iinvalidate_p;
-reg [31:0] mem_addr_p, mem_addr_4_p;
-reg [31:0] mem_data_wr_p;
-reg opcode_valid_p;
+wire is_cmi = req_flush | req_inv | req_wb;
+wire is_active_req = opcode_valid_i && (ex_mem_rd_i || ex_mem_wr_i || is_cmi);
 
 always @(posedge clk_i or negedge rst_i) begin
-    if(~rst_i)begin
-        lb_inst_p <= 1'b0;
-        lh_inst_p <= 1'b0;
-        lw_inst_p <= 1'b0;
-        sb_inst_p <= 1'b0;
-        sh_inst_p <= 1'b0;
-        sw_inst_p <= 1'b0;
-        sign_inst_p <= 1'b0;
-        ld_inst_p <= 1'b0;
-        st_inst_p <= 1'b0;
-        dflush_p <= 1'b0;
-        dwriteback_p <= 1'b0;
-        dinvalidate_p <= 1'b0;
-        dzero_p <= 1'b0;
-        iinvalidate_p <= 1'b0;
-        mem_addr_p <= 32'b0;
-        mem_addr_4_p <= 32'b0;
-        opcode_valid_p <= 1'b0;
+    if (~rst_i) begin
+        state_r <= ST_IDLE;
+        req_addr_r <= 0; req_wdata_r <= 0; req_mask_r <= 0;
+        req_ctrl_r <= 0; req_rd_r <= 0; req_wr_r <= 0;
+        cmi_flush_r <= 0; cmi_inv_r <= 0; cmi_wb_r <= 0;
+        is_cachable_r <= 0;
+        wait_1 <= 0;
     end else begin
-        lb_inst_p <= lb_inst;
-        lh_inst_p <= lh_inst;
-        lw_inst_p <= lw_inst;
-        sb_inst_p <= sb_inst;
-        sh_inst_p <= sh_inst;
-        sw_inst_p <= sw_inst;
-        sign_inst_p <= sign_inst;
-        ld_inst_p <= ld_inst;
-        st_inst_p <= st_inst;
-        dflush_p <= dflush;
-        dwriteback_p <= dwriteback;
-        dinvalidate_p <= dinvalidate;
-        dzero_p <= dzero;
-        iinvalidate_p <= iinvalidate;
-        mem_addr_p <= mem_addr_w;
-        mem_addr_4_p <= mem_addr_w_4;
-        mem_data_wr_p <= rb_data;
-        opcode_valid_p <= opcode_valid_i;
-    end
-end
-
-// --------------------------------------------
-//  Dcache & Icache Control Signal
-// --------------------------------------------
-
-// always @(posedge clk_i or negedge rst_i)begin
-//     if(~rst_i)begin
-//         mmu_dflush_o        <= 1'b0;
-//         mmu_dwriteback_o    <= 1'b0;
-//         mmu_dinvalidate_o   <= 1'b0;
-//         mmu_iinvalidate_o   <= 1'b0;
-//     end else begin
-//         mmu_dflush_o        <= dflush_p;
-//         mmu_dwriteback_o    <= dwriteback_p;
-//         mmu_dinvalidate_o   <= dinvalidate_p;
-//         mmu_iinvalidate_o   <= iinvalidate_p;
-//     end
-// end
-
-always @(*)begin
-    mmu_dflush_o      = dflush_p;
-    mmu_dwriteback_o  = dwriteback_p;
-    mmu_dinvalidate_o = dinvalidate_p;
-    mmu_dzero_o       = dzero_p;
-    mmu_iinvalidate_o = iinvalidate_p;
-end
-
-// --------------------------------------------
-//  Error Detection
-// --------------------------------------------
-
-wire fetch_misaligned;
-wire unaligned_1_r;
-wire unaligned_2_r;
-wire addr_unaligned = unaligned_1_r || unaligned_2_r;
-
-assign fetch_misaligned = !(fetch_pc_i[1:0] == 2'b00);
-assign unaligned_2_r = (mem_addr_p[1:0] != 2'b00) & (lw_inst_p | sw_inst_p);
-assign unaligned_1_r = (mem_addr_p[1:0] == 2'b11) & (lh_inst_p | sh_inst_p);
-
-assign except_inst_ma = fetch_misaligned;
-assign except_page_fault_load = mmu_read_excpt_i;
-assign except_page_fault_store = mmu_write_excpt_i;
-
-// --------------------------------------------
-//  Unaligned Control
-// -------------------------------------------- 
-
-reg u_state;
-reg u_rd;
-reg u_wr;
-reg u_sign;
-reg u_lh;
-reg [31:0] u_addr;
-reg [31:0] u_data;
-reg [2:0] u_type;
-
-always @(posedge clk_i or negedge rst_i)begin
-    if(~rst_i)
-    begin
-        u_state <= 0;
-        u_rd <= 0;
-        u_wr <= 0;
-        u_type <= 3'h0;
-        u_sign <= 0;
-        u_lh <= 0;
-        u_addr <= 32'b0;
-        u_data <= 32'b0;
-    end
-    else
-    begin
-        if(unaligned_1_r)
-        begin
-            u_state <= 1;
-            u_rd <= ld_inst_p;
-            u_wr <= st_inst_p;
-            u_type <= 3'h1;
-            u_data <= mem_data_wr_p;
-            u_addr <= mem_addr_4_p;
-            u_sign <= sign_inst_p;
-            u_lh <= 1'b1;
-        end
-        else if(unaligned_2_r)
-        begin
-            u_state <= 1'b1;
-            u_rd <= ld_inst_p;
-            u_wr <= st_inst_p;
-            u_data <= mem_data_wr_p;
-            u_addr <= mem_addr_4_p;
-            u_sign <= 0;
-            u_lh <= 0;
-
-            case(mem_addr_p[1:0])
-            2'b01:  u_type <= 3'h2;
-            2'b10:  u_type <= 3'h3;
-            2'b11:  u_type <= 3'h4;
-            default:u_type <= 3'h0;
-            endcase
-        end
-        else
-        begin
-            u_state <= 0;
-            u_rd <= 0;
-            u_wr <= 0;
-            u_type <= 3'h0;
-            u_sign <= 0;
-            u_lh <= 0;
-        end
-    end
-end
-
-// --------------------------------------------
-//  MMU
-// -------------------------------------------- 
-
-assign mmu_addr_o   = (ex_mem_ctrl_i[1:0] == 2'b11)? mem_addr_p : {resp_addr[31:2],2'b00};
-assign mmu_data_o   = resp_data;
-assign mmu_rd_o     = resp_valid_o && resp_rd;
-assign mmu_wr_o     = resp_valid_o && resp_wr;
-assign mmu_mask_o   = (mmu_wr_o)?resp_mask: (mmu_rd_o)?4'hf: 4'h0;
-
-// --------------------------------------------
-//  Input Address & Data Control
-// --------------------------------------------
-
-always @(*)begin
-    mem_rd_r = ld_inst_p | u_rd;
-    mem_wr_r = st_inst_p | u_wr;
-    mem_mask_r = 0;
-    mem_data_wr_r = 32'b0;
-
-    // write setting 
-    if (sw_inst_p)begin
-        case(mem_addr_p[1:0])
-        2'b11:   mem_data_wr_r = {mem_data_wr_p[7:0],24'h0};
-        2'b10:   mem_data_wr_r = {mem_data_wr_p[15:0],16'h0};
-        2'b01:   mem_data_wr_r = {mem_data_wr_p[23:0],8'h0};
-        2'b00:   mem_data_wr_r = mem_data_wr_p;
-        endcase
-    end else if(sh_inst_p)begin
-        case(mem_addr_p[1:0])
-        2'b11:   mem_data_wr_r  = {mem_data_wr_p[7:0],24'h0};
-        2'b10:   mem_data_wr_r  = {mem_data_wr_p[15:0],16'h0};
-        2'b01:   mem_data_wr_r  = {8'h0, mem_data_wr_p[15:0], 8'h0};
-        2'b00:   mem_data_wr_r  = {16'h0,mem_data_wr_p[15:0]};
-        endcase
-    end else if(sb_inst_p)begin
-        case(mem_addr_p[1:0])
-        2'b11:   mem_data_wr_r = {mem_data_wr_p[7:0],24'h0};
-        2'b10:   mem_data_wr_r = {{8'h0,mem_data_wr_p[7:0]},16'h0};
-        2'b01:   mem_data_wr_r = {{16'h0,mem_data_wr_p[7:0]},8'h0};
-        2'b00:   mem_data_wr_r = {24'h0,mem_data_wr_p[7:0]};
-        endcase
-    end
-
-    // mask setting
-    if (sw_inst_p || lw_inst_p)begin
-        case(mem_addr_p[1:0])
-        2'b11: mem_mask_r = 4'b1000;
-        2'b10: mem_mask_r = 4'b1100;
-        2'b01: mem_mask_r = 4'b1110;
-        2'b00: mem_mask_r = 4'b1111;
-        endcase
-    end else if (sh_inst_p || lh_inst_p)begin
-        case(mem_addr_p[1:0])
-        2'b11:   mem_mask_r = 4'b1000;
-        2'b10:   mem_mask_r = 4'b1100;
-        2'b01:   mem_mask_r = 4'b0110;
-        2'b00:   mem_mask_r = 4'b0011;
-        endcase
-    end else if (sb_inst_p || lb_inst_p)begin
-        case(mem_addr_p[1:0])
-        2'b11:   mem_mask_r = 4'b1000;
-        2'b10:   mem_mask_r = 4'b0100;
-        2'b01:   mem_mask_r = 4'b0010;
-        2'b00:   mem_mask_r = 4'b0001;
+        case (state_r)
+            ST_IDLE: begin
+                if (is_active_req) begin
+                    req_addr_r  <= lsu_addr_i;
+                    req_wdata_r <= lsu_wdata_i << {lsu_addr_i[1:0], 3'b000};
+                    req_mask_r  <= lsu_mask_i << lsu_addr_i[1:0];
+                    req_ctrl_r  <= ex_mem_ctrl_i;
+                    req_rd_r    <= ex_mem_rd_i;
+                    req_wr_r    <= ex_mem_wr_i;
+                    cmi_flush_r <= req_flush;
+                    cmi_inv_r   <= req_inv;
+                    cmi_wb_r    <= req_wb;
+                    is_cachable_r <= (lsu_addr_i >= D_ADDR_MIN) && (lsu_addr_i <= D_ADDR_MAX);
+                    wait_1      <= 1'b1;
+                    state_r     <= ST_WAIT;
+                end
+            end
+            ST_WAIT: begin
+                wait_1 <= 1'b0;
+                if (writeback_valid_o) begin 
+                    state_r <= ST_IDLE;
+                    req_rd_r <= 0; req_wr_r <= 0;
+                    cmi_flush_r <= 0; cmi_inv_r <= 0; cmi_wb_r <= 0; 
+                end
+            end
         endcase
     end
 end
 
-always @(*)begin
-    mem_data_wr_u = u_data;
-    mem_mask_u = 4'b0000;
+wire use_comb = (state_r == ST_IDLE);
 
-    if(u_type == 3'h1)
-    begin
-        mem_data_wr_u = {24'h000000,u_data[15:8]};
-        mem_mask_u = 4'b0001;
-    end
-    else if(u_type == 3'h2)
-    begin
-        mem_data_wr_u = {24'h000000,u_data[31:24]};
-        mem_mask_u = 4'b0001;
-    end
-    else if(u_type == 3'h3)
-    begin
-        mem_data_wr_u = {16'h0000,u_data[31:16]};
-        mem_mask_u = 4'b0011;
-    end
-    else if(u_type == 3'h4)
-    begin
-        mem_data_wr_u = {8'h00,u_data[31:8]};
-        mem_mask_u = 4'b0111;
-    end
-end
+wire [1:0] direct_byte_sel = lsu_addr_i[1:0];
+wire [31:0] comb_wdata = lsu_wdata_i << {direct_byte_sel, 3'b000};
+wire [ 3:0] comb_mask  = lsu_mask_i << direct_byte_sel;
+wire comb_cachable = (lsu_addr_i >= D_ADDR_MIN) && (lsu_addr_i <= D_ADDR_MAX);
 
-// --------------------------------------------
-//  Queue 
-// --------------------------------------------
+assign mem_addr_o = use_comb ? lsu_addr_i : req_addr_r;
+assign mem_data_o = use_comb ? comb_wdata : req_wdata_r;
+assign mem_mask_o = use_comb ? comb_mask  : req_mask_r;
 
-wire push_q = ((mem_rd_r || mem_wr_r ) && resp_accept_o) || u_state;
-wire pop_q = mmu_valid_i && resp_valid_o;
-wire mem_sign = sign_inst_p || u_sign;
-wire mem_lb = lb_inst_p || u_lh;
+wire cur_is_cachable = use_comb ? comb_cachable : is_cachable_r;
+wire cur_req_rd      = use_comb ? (opcode_valid_i & ex_mem_rd_i) : req_rd_r;
+wire cur_req_wr      = use_comb ? (opcode_valid_i & ex_mem_wr_i) : req_wr_r;
+wire cur_is_cmi      = use_comb ? is_cmi : (cmi_flush_r | cmi_inv_r | cmi_wb_r);
 
-assign final_mem_addr_r = (u_type==3'b000) ? mem_addr_p : u_addr;
-assign final_data_wr_r = (u_type==3'b000) ? mem_data_wr_r : mem_data_wr_u;
-assign final_mask_r = (u_type==3'b000) ? mem_mask_r : mem_mask_u; 
-assign {resp_addr, resp_data, resp_lb, resp_lh, resp_lw, resp_signed, resp_rd, resp_wr, resp_mask, resp_u_type, resp_addr_unaligned} = resp_data_o; 
+assign dcache_rd_o = cur_is_cachable & cur_req_rd;
+assign dcache_wr_o = cur_is_cachable & cur_req_wr;
+assign cdma_rd_o   = !cur_is_cachable & cur_req_rd;
+assign cdma_wr_o   = !cur_is_cachable & cur_req_wr;
 
-reg pop_pre;
-always @(posedge clk_i or negedge rst_i)begin
-    if(!rst_i)
-        pop_pre <= 0;
-    else
-        pop_pre <= pop_q;
-end
+assign dcache_dflush_o      = (state_r == ST_WAIT) & cmi_flush_r;
+assign dcache_dinvalidate_o = (state_r == ST_WAIT) & cmi_inv_r;
+assign dcache_dwriteback_o  = (state_r == ST_WAIT) & cmi_wb_r;
+assign icache_invalidate_o  = 1'b0;
 
-always @(*)begin
-    data_q_i = {(DATASIZE){1'b0}};
+assign writeback_valid_o =
+    (state_r == ST_IDLE && opcode_valid_i && !is_active_req) ? 1'b1 :
+    (state_r == ST_WAIT) ? (
+        cur_is_cmi ? (!wait_1 && dcache_rdy_i) :
+        is_cachable_r ? dcache_vld_i :
+        cdma_valid_i
+    ) : 1'b0;
 
-    if (ld_inst_p || u_rd)
-        data_q_i = {final_mem_addr_r, 32'b0, mem_lb, lh_inst_p, lw_inst_p, mem_sign, mem_rd_r, 1'b0, final_mask_r, u_type, addr_unaligned};
-    else if (st_inst_p || u_wr)
-        data_q_i = {final_mem_addr_r, final_data_wr_r, mem_lb, lh_inst_p, lw_inst_p, mem_sign, 1'b0, mem_wr_r, final_mask_r, u_type, addr_unaligned};
-    else 
-        data_q_i = {(DATASIZE){1'b0}};
-end
+wire [31:0] cur_addr = use_comb ? lsu_addr_i : req_addr_r;
+wire [ 3:0] cur_ctrl = use_comb ? ex_mem_ctrl_i : req_ctrl_r;
 
-// LSU Queue Unit
-lsu_queue #(
-    .DATASIZE(DATASIZE), 
-    .LENGTH(QUEUE_LEN), 
-    .DEPTH(QUEUE_LEN)
-) LDQ (
-    .clk_i(clk_i),
-    .rst_i(rst_i),
+wire [31:0] raw_memory_value = !cur_is_cachable ? cdma_value_i : dcache_value_i;
+wire [4:0]  shift_amount = {cur_addr[1:0], 3'b000};
 
-    .data_i(data_q_i),
-    .push_i(push_q),
-    .accept_o(resp_accept_o),
+wire [31:0] raw_rdata = raw_memory_value >> shift_amount;
 
-    .pop_i(pop_q),
-    .data_o(resp_data_o),
-    .valid_o(resp_valid_o)      
-);
+wire [7:0]  raw_byte = raw_rdata[7:0];
+wire [15:0] raw_half = raw_rdata[15:0];
+wire sign_ext_b = cur_ctrl[3] & raw_byte[7];
+wire sign_ext_h = cur_ctrl[3] & raw_half[15];
 
-// --------------------------------------------
-//  Writeback
-// --------------------------------------------
+wire [31:0] fmt_byte = {{24{sign_ext_b}}, raw_byte};
+wire [31:0] fmt_half = {{16{sign_ext_h}}, raw_half};
 
-reg [31:0] writeback_value_r;
-reg [31:0] writeback_value_pre;
-reg [31:0] writeback_value_ma;
-reg [ 3:0] writeback_mask_pre;
-reg        resp_valid_pre;
-
-wire is_ma = !(resp_u_type == 3'b0);
-
-// assign writeback_valid_o = (!resp_addr_unaligned && mmu_valid_i) || mmu_cache_oper_valid_i;
-assign writeback_valid_o = (!resp_addr_unaligned && mmu_valid_i);
-assign writeback_value_o = (is_ma)? writeback_value_ma : writeback_value_r;
-
-always @(posedge clk_i or negedge rst_i) begin
-    if(~rst_i)
-    begin
-        writeback_value_pre <= 32'h0;
-        resp_valid_pre <= 0;
-    end
-    else
-    begin
-        resp_valid_pre <= resp_valid_o;
-        if(mmu_valid_i)
-            writeback_value_pre <= writeback_value_r;
-    end
-end
-
-always @(*)begin
-    writeback_value_r = 32'b0;
-    writeback_value_ma = 32'h0;
-
-    case(resp_mask)
-    4'b0001: writeback_value_r = {24'b0, mmu_value_i[7:0]};
-    4'b0010: writeback_value_r = {24'b0, mmu_value_i[15:8]};
-    4'b0100: writeback_value_r = {24'b0, mmu_value_i[23:16]};
-    4'b1000: writeback_value_r = {24'b0, mmu_value_i[31:24]};
-    4'b0011: writeback_value_r = {16'b0, mmu_value_i[15:0]};
-    4'b0110: writeback_value_r = {16'b0, mmu_value_i[23:8]};
-    4'b1100: writeback_value_r = {16'b0, mmu_value_i[31:16]};
-    4'b0111: writeback_value_r = {8'b0, mmu_value_i[23:0]};
-    4'b1110: writeback_value_r = {8'b0, mmu_value_i[31:8]};
-    4'b1111: writeback_value_r = mmu_value_i;
-    default: writeback_value_r = 32'b0;
-    endcase
-
-    if(resp_signed && resp_lh && writeback_value_r[15])
-        writeback_value_r = {16'hFFFF, writeback_value_r[15:0]};
-    else if(resp_signed && resp_lb && writeback_value_r[7])
-        writeback_value_r = {24'hFFFFFF, writeback_value_r[7:0]};
-
-    case(resp_u_type)
-        3'h1: writeback_value_ma = {writeback_value_r[23:0], writeback_value_pre[ 7:0]};
-        3'h2: writeback_value_ma = {writeback_value_r[ 7:0], writeback_value_pre[23:0]};
-        3'h3: writeback_value_ma = {writeback_value_r[15:0], writeback_value_pre[15:0]};
-        3'h4: writeback_value_ma = {writeback_value_r[23:0], writeback_value_pre[ 7:0]};
-        default: writeback_value_ma = writeback_value_r; 
-    endcase
-end
-
-// --------------------------------------------
-//  Icache Interface
-// --------------------------------------------
-
-assign fetch_inst_o = mmu_i_inst_i;
-assign fetch_valid_o = mmu_i_valid_i;
-assign mmu_i_pc_o = fetch_pc_i;
-assign mmu_i_rd_o = fetch_rd_i;
+assign writeback_value_o = (cur_ctrl[2:0] == 3'b001) ? fmt_byte :
+                           (cur_ctrl[2:0] == 3'b010) ? fmt_half :
+                           raw_rdata;
 
 endmodule

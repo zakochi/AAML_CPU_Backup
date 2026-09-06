@@ -6,6 +6,9 @@
 #include "menu.h"
 #include "perf.h"
 
+// 引入你的測試標頭檔
+#include "conv_test.h"
+
 namespace {
 
 void do_hello(void) {
@@ -25,9 +28,11 @@ void do_sample_cfu_op(void) {
   putchar('\n');
 }
 
+// 選單項目列表：新增 't' 鍵來觸發你的 conv_address_aligned_test
 const MenuItem kUserItems[] = {
     MENU_ITEM('h', "hello from user menu", do_hello),
     MENU_ITEM('c', "sample custom instruction call", do_sample_cfu_op),
+    MENU_ITEM('t', "run conv address aligned test", conv_address_aligned_test),
     MENU_END,
 };
 

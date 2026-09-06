@@ -52,8 +52,14 @@ generate_target all [get_files MMIO.bd]
 add_files -norecurse [make_wrapper -files [get_files MMIO.bd] -top]
 
 set_property top SoC [current_fileset]
+update_compile_order -fileset sources_1
 launch_runs impl_1 -to_step write_bitstream -jobs 8
 wait_on_run impl_1
+open_run impl_1
+puts "================ UTILIZATION REPORT ================"
+report_utilization
+puts "================ WORST TIMING PATH ================"
+report_timing -max_paths 1 -setup
 
 set bit_src [file normalize "./${proj_name}/${proj_name}.runs/impl_1/SoC.bit"]
 if {[file exists $bit_src]} {

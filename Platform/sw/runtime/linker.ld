@@ -52,6 +52,7 @@ SECTIONS
         _stack_end = .;
         . += _STACK_SIZE;
         _stack_start = .;
+		__stack_top = .;
     } > DDR2_RAM
 
     .heap : {

@@ -4,3 +4,16 @@ utils_1/
 .Xil/
 build/
 Platform/sw/project.mk
+app/
+models/
+project/
+runtime/
+templates/
+tflm_patches/
+Platform/sw/build.log
+Platform/sw/main.cc
+Platform/sw/Makefile
+Platform/sw/project.mk.example
+Platform/sw/README.md
+
+

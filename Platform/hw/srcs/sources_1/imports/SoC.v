@@ -23,24 +23,28 @@
 module SoC(
     input         CLK100MHZ,
     input         CPU_RESETN,
-    output [12:0] DDR2_addr,
-    output [2:0]  DDR2_ba,
-    output        DDR2_cas_n,
-    output [0:0]  DDR2_ck_n,
-    output [0:0]  DDR2_ck_p,
-    output [0:0]  DDR2_cke,
-    output [0:0]  DDR2_cs_n,
-    output [1:0]  DDR2_dm,
-    inout  [15:0] DDR2_dq,
-    inout  [1:0]  DDR2_dqs_n,
-    inout  [1:0]  DDR2_dqs_p,
-    output [0:0]  DDR2_odt,
-    output        DDR2_ras_n,
-    output        DDR2_we_n,
+    
+    // DDR3 Interface
+    output [13:0] DDR3_addr,   
+    output [2:0]  DDR3_ba,
+    output        DDR3_cas_n,
+    output [0:0]  DDR3_ck_n,
+    output [0:0]  DDR3_ck_p,
+    output [0:0]  DDR3_cke,
+    output [0:0]  DDR3_cs_n,
+    output [1:0]  DDR3_dm,
+    inout  [15:0] DDR3_dq,
+    inout  [1:0]  DDR3_dqs_n,
+    inout  [1:0]  DDR3_dqs_p,
+    output [0:0]  DDR3_odt,
+    output        DDR3_ras_n,
+    output        DDR3_we_n,
+    output        DDR3_reset_n,
+    
+    // 其它 IO
     input         UART_rxd,
     output        UART_txd,
     output        mb_reset,
-    
     output        diag_led_blink, 
     output        diag_led_rst   
 );
@@ -52,22 +56,22 @@ module SoC(
     assign diag_led_blink = cnt[26];   
     assign diag_led_rst   = ~CPU_RESETN; 
     
-    
-      MMIO MMIO_i
-       (.DDR2_0_addr(DDR2_addr),
-        .DDR2_0_ba(DDR2_ba),
-        .DDR2_0_cas_n(DDR2_cas_n),
-        .DDR2_0_ck_n(DDR2_ck_n),
-        .DDR2_0_ck_p(DDR2_ck_p),
-        .DDR2_0_cke(DDR2_cke),
-        .DDR2_0_cs_n(DDR2_cs_n),
-        .DDR2_0_dm(DDR2_dm),
-        .DDR2_0_dq(DDR2_dq),
-        .DDR2_0_dqs_n(DDR2_dqs_n),
-        .DDR2_0_dqs_p(DDR2_dqs_p),
-        .DDR2_0_odt(DDR2_odt),
-        .DDR2_0_ras_n(DDR2_ras_n),
-        .DDR2_0_we_n(DDR2_we_n),
+    MMIO MMIO_i
+       (.DDR3_0_addr(DDR3_addr),
+        .DDR3_0_ba(DDR3_ba),
+        .DDR3_0_cas_n(DDR3_cas_n),
+        .DDR3_0_ck_n(DDR3_ck_n),
+        .DDR3_0_ck_p(DDR3_ck_p),
+        .DDR3_0_cke(DDR3_cke),
+        .DDR3_0_cs_n(DDR3_cs_n),
+        .DDR3_0_dm(DDR3_dm),
+        .DDR3_0_dq(DDR3_dq),
+        .DDR3_0_dqs_n(DDR3_dqs_n),
+        .DDR3_0_dqs_p(DDR3_dqs_p),
+        .DDR3_0_odt(DDR3_odt),
+        .DDR3_0_ras_n(DDR3_ras_n),
+        .DDR3_0_reset_n(DDR3_reset_n), 
+        .DDR3_0_we_n(DDR3_we_n),
         .UART_0_rxd(UART_rxd),
         .UART_0_txd(UART_txd),
         .button_resetn(CPU_RESETN),

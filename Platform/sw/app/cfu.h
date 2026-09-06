@@ -33,8 +33,7 @@ uint32_t software_cfu_raw(uint32_t funct3, uint32_t funct7, CfuWord rs1,
     __asm__ volatile(".insn r 0x0B, " CFU_STRINGIFY(funct3) ", "          \
                      CFU_STRINGIFY(funct7) ", %0, %1, %2"                 \
                      : "=r"(cfu_result)                                   \
-                     : "r"((CfuWord)(rs1)), "r"((CfuWord)(rs2))           \
-                     : "memory");                                         \
+                     : "r"((CfuWord)(rs1)), "r"((CfuWord)(rs2)));                                         \
     cfu_result;                                                            \
   })
 #else

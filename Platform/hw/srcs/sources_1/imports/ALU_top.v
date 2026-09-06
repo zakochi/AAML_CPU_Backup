@@ -1,12 +1,11 @@
-/* verilator lint_off UNUSEDSIGNAL */
+
 `include "riscv_defs.v"
 module ALU_top(
     input [3:0] ALU_ctrl,
     input [31:0] a,
     input [31:0] b,
     input        is_imm_i,
-    output reg [31:0] out,
-    output reg exception_o
+    output reg [31:0] out
 );
 
 reg [2:0]  Oper;
@@ -35,7 +34,6 @@ always @(*) begin
     invB=0;
     out = 32'h0;
     Sign = 0;
-    exception_o = 0;
     
     case (ALU_ctrl)
         `ALU_ADD: begin
@@ -62,7 +60,6 @@ always @(*) begin
         `ALU_SHIFTL: begin
             Oper = 3'b001; // SLL
             out = ALU_out;
-            exception_o = (is_imm_i) ? (b >= 32) : 0;
         end
         `ALU_SHIFTR: begin
             Oper = 3'b011; // SRL

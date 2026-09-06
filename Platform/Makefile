@@ -12,17 +12,21 @@ prog:
 	rm -f *.str *.debug *.log *.jou *.pb vivado*.backup.*
 
 run:
-	@echo ">> [SW] Building Application with $(THREADS) threads..."
+	@echo ">> [SERVER] Warming up Vivado JTAG Server in background..."
+	@python3 -c "import socket; socket.create_connection(('localhost', 3122), 0.1)" 2>/dev/null || \
+	(vivado -mode tcl -source $(ROOT_DIR)/hw/jtag_server.tcl -notrace -nolog -nojournal > /dev/null 2>&1 &)
+	@echo ">> [SW] Building Application..."
 	@mkdir -p $(BUILD_DIR)/sw
 	$(MAKE) -C $(SW_DIR) all BUILD_DIR=$(BUILD_DIR)/sw
 	@echo ">> [UART] Starting pipeline..."
-	rm -f *.str *.debug *.log *.jou *.pb vivado*.backup.*
+	@rm -f *.str *.debug *.log *.jou *.pb vivado*.backup.*
 	python3 $(SW_DIR)/upload.py $(BUILD_DIR)/sw/main.bin
 
 all_clean:
 	@echo ">> Cleaning everything..."
 	rm -rf $(BUILD_DIR)
 	rm -f *.str *.debug *.log *.jou *.pb vivado*.backup.*
+	rm -rf ./hw/CUSTOM_SoC.gen
 
 sw_clean:
 	@echo ">> Cleaning Software build artifacts..."

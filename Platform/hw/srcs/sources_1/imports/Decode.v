@@ -4,21 +4,17 @@ module Decode (
     input en,
     input clear,
 
+    input inst_valid_i, 
+    
     input [31:0] pc_i,
     input [31:0] pc_p4_i,
     input [31:0] inst_i,
-
-    input bp_pred_taken_i,
-    input [31:0] bp_pred_target_i,
-
+   
     output pc_valid_o,
     output [31:0] pc_o,
     output [31:0] pc_p4_o,
     output [31:0] inst_o,
-
-    output bp_pred_taken_o,
-    output [31:0] bp_pred_target_o,
-    
+   
     output [4:0] rs1_o,
     output [4:0] rs2_o,
     output [4:0] rs3_o,
@@ -29,7 +25,6 @@ module Decode (
 
     // WB stage
     output reg_wr_en_o,
-    output freg_wr_en_o,
     output [2:0] reg_w_sel_o, // 0: pc_p4, 1: ALU, 2: mem, 3:csr, 4: FPU, 5: bypass, 6: MUL_DIV_top
     
     // LSU
@@ -53,14 +48,7 @@ module Decode (
 
     // CSR
     output is_csr_o,
-    output [2:0] csr_op_o,
-    output is_csr_imm_o, // is csr[r w]i
-
-    // FPU
-    output is_f_ext_o,
-    output is_fpu_o,
-    output FPU_sel1_o, // 0: fs1, 1: rs1
-
+	
     // NPU
     output is_npu_o,
 
@@ -70,7 +58,12 @@ module Decode (
     // Fence
     output fetch_invalid_o,
 
-    output is_impl_o
+    output is_impl_o,
+    
+    // Cache Operations
+    output is_dflush_o,
+    output is_dinval_o,
+    output is_dwb_o
 );
 wire        ID_pc_valid_out;
 wire [31:0] ID_pc_out;
@@ -116,7 +109,6 @@ end
 // Decode ========================
 wire        is_impl;
 wire        reg_wr_en;
-wire        freg_wr_en;
 wire [2:0]  reg_w_sel;
 wire        mem_wr_en;
 wire        mem_rd_en;
@@ -130,11 +122,7 @@ wire [3:0]  ALU_ctrl;
 wire        is_MUL_DIV;
 wire [2:0]  MUL_DIV_ctrl;
 wire        is_csr;
-wire [2:0]  csr_op;
-wire        is_csr_imm;
 wire [11:0] csr_addr;
-wire        is_fpu;
-wire        FPU_sel1;
 wire [1:0]  bypass_sel;
 wire        fetch_invalid;
 
@@ -145,19 +133,15 @@ ID_Reg m_ID_Reg(
     .en(en),
     .clear(clear),
 
-    .pc_valid_i(1),
+    .pc_valid_i(inst_valid_i),
     .pc_p4_i(pc_p4_i),
     .inst_i(inst_i),
     .pc_i(pc_i),
-    .bp_pred_taken_i(bp_pred_taken_i),
-    .bp_pred_target_i(bp_pred_target_i),
 
     .pc_valid_o(ID_pc_valid_out),
     .pc_o(ID_pc_out),
     .pc_p4_o(ID_pc_p4_out),
-    .inst_o(ID_inst_out),
-    .bp_pred_taken_o(bp_pred_taken_o),
-    .bp_pred_target_o(bp_pred_target_o)
+    .inst_o(ID_inst_out)
 );
 
 
@@ -166,7 +150,6 @@ Control m_Control(
     .is_impl_o(is_impl),
     
     .reg_wr_en_o(reg_wr_en),
-    .freg_wr_en_o(freg_wr_en),
     .reg_w_sel_o(reg_w_sel),
     
     .mem_wr_en_o(mem_wr_en),
@@ -185,23 +168,20 @@ Control m_Control(
     .MUL_DIV_ctrl_o(MUL_DIV_ctrl),
     
     .is_csr_o(is_csr),
-    .csr_op_o(csr_op),
-    .is_csr_imm_o(is_csr_imm),
     .csr_addr_o(csr_addr),
-
-    .is_f_ext_o(is_f_ext_o),
-    .is_fpu_o(is_fpu),
-    .FPU_sel1_o(FPU_sel1), // 0: freg_rd_data1, 1: reg_rd_data1
 
     .is_npu_o(is_npu_o),
 
     .bypass_sel_o(bypass_sel),
 
-    .fetch_invalid_o(fetch_invalid)
+    .fetch_invalid_o(fetch_invalid),
+    
+    .is_dflush_o(is_dflush_o),
+    .is_dinval_o(is_dinval_o),
+    .is_dwb_o(is_dwb_o)
 );
 assign is_impl_o = is_impl;
 assign reg_wr_en_o = reg_wr_en;
-assign freg_wr_en_o = freg_wr_en;
 assign reg_w_sel_o = reg_w_sel;
 assign mem_wr_en_o = mem_wr_en;
 assign mem_rd_en_o = mem_rd_en;
@@ -215,11 +195,7 @@ assign ALU_ctrl_o = ALU_ctrl;
 assign is_MUL_DIV_o = is_MUL_DIV;
 assign MUL_DIV_ctrl_o = MUL_DIV_ctrl;
 assign is_csr_o = is_csr;
-assign csr_op_o = csr_op;
-assign is_csr_imm_o = is_csr_imm;
 assign csr_addr_o = csr_addr;
-assign is_fpu_o = is_fpu;
-assign FPU_sel1_o = FPU_sel1;
 assign bypass_sel_o = bypass_sel;
 assign fetch_invalid_o = fetch_invalid;
 assign pc_valid_o = ID_pc_valid_out;

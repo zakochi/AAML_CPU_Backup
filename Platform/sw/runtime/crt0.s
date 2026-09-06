@@ -3,7 +3,7 @@
 .global _start
 
 _start:
-    li sp, 0x67FFFFF0
+    la sp, __stack_top
     li s0, 0x40005000
 
     li t0, 33

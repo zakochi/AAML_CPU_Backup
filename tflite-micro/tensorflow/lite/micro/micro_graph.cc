@@ -169,7 +169,10 @@ TfLiteStatus MicroGraph::InvokeSubgraph(int subgraph_idx) {
 #endif
 
     TFLITE_DCHECK(registration->invoke);
+
+
     TfLiteStatus invoke_status = registration->invoke(context_, node);
+
 
     // All TfLiteTensor structs used in the kernel are allocated from temp
     // memory in the allocator. This creates a chain of allocations in the

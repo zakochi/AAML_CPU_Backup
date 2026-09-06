@@ -14,10 +14,13 @@ module Register #(parameter sp_init = 65536) (
 );
     reg [31:0] regs [0:31];
     
-    assign rd_data1_o = regs[rs1];
-    assign rd_data2_o = regs[rs2];
+    assign rd_data1_o = (rs1 == 5'd0) ? 32'd0 :
+                        ((wr_en && (rs1 == rd)) ? data_i : regs[rs1]);
 
-    always @(negedge clk, negedge rst_n) begin
+    assign rd_data2_o = (rs2 == 5'd0) ? 32'd0 :
+                        ((wr_en && (rs2 == rd)) ? data_i : regs[rs2]);
+
+    always @(posedge clk, negedge rst_n) begin
         if(~rst_n) begin
             regs[0] <= 0; regs[1] <= 0; regs[2] <= sp_init; regs[3] <= 0;
             regs[4] <= 0; regs[5] <= 0; regs[6] <= 0; regs[7] <= 0;

@@ -21,7 +21,7 @@ namespace tflite {
 // The default buffer alignment requirement.
 // We align tensor buffers to 16-byte boundaries, since this is a common
 // requirement for SIMD extensions.
-constexpr int MicroArenaBufferAlignment() { return 16; }
+constexpr int MicroArenaBufferAlignment() { return 128; }
 
 }  // namespace tflite
 
