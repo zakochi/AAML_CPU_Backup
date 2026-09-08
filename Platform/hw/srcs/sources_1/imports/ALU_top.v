@@ -1,4 +1,4 @@
-
+/* verilator lint_off UNUSEDSIGNAL */
 `include "riscv_defs.v"
 module ALU_top(
     input [3:0] ALU_ctrl,

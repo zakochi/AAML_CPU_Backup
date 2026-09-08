@@ -5,6 +5,7 @@ module Inst_buf(
     input         push_valid_i,
     input [31:0]  push_pc_i,
     input [31:0]  push_inst_i,
+    input         push_pred_taken_i,
     output        push_ready_o,
     output        almost_full_o, 
     
@@ -13,6 +14,7 @@ module Inst_buf(
     output        inst_rdy_o,
     output [31:0] inst_pc_o,
     output [31:0] inst_o,
+    output        inst_pred_taken_o,
     input         req_inst_i
 );
 	localparam FIFO_DEPTH = 16;
@@ -20,12 +22,14 @@ module Inst_buf(
     wire pc_is_empty;
     wire inst_is_full;
     wire inst_is_empty;
-    wire [5:0] pc_count;
-	
+    wire pred_is_full;
+    wire pred_is_empty;
+    wire [4:0] pc_count;
+
     assign almost_full_o = (pc_count >= FIFO_DEPTH - 2); 
 
-    assign inst_rdy_o = ~pc_is_empty && ~inst_is_empty;
-    assign push_ready_o = ~pc_is_full && ~inst_is_full;
+    assign inst_rdy_o = ~pc_is_empty && ~inst_is_empty && ~pred_is_empty;
+    assign push_ready_o = ~pc_is_full && ~inst_is_full && ~pred_is_full;
     
     IB_queue #(
         .DATASIZE(32),
@@ -37,6 +41,7 @@ module Inst_buf(
         .push_i   (push_valid_i),    
         .pop_i    (req_inst_i),     
         .flush_i  (flush),   
+        .count_o  (),
         .is_full  (pc_is_full), 
         .is_empty (pc_is_empty),
         .data_o   (inst_pc_o)   
@@ -56,6 +61,22 @@ module Inst_buf(
         .is_full  (inst_is_full), 
         .is_empty (inst_is_empty),
         .data_o   (inst_o)   
+    );
+
+    IB_queue #(
+        .DATASIZE(1),
+        .DEPTH(FIFO_DEPTH)
+    ) m_prediction_queue (
+        .clk_i    (clk),
+        .rst_n    (rst_n),
+        .data_i   (push_pred_taken_i),
+        .push_i   (push_valid_i),
+        .pop_i    (req_inst_i),
+        .flush_i  (flush),
+        .count_o  (),
+        .is_full  (pred_is_full),
+        .is_empty (pred_is_empty),
+        .data_o   (inst_pred_taken_o)
     );
 
 endmodule

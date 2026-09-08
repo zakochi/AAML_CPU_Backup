@@ -46,6 +46,22 @@ module SRTDivider (
     wire [31:0] q;
     wire [65:0] r;
 
+    // Pipeline-register outputs are declared before the restoration logic
+    // that reads their final stages.  Some tools reject implicit forward nets.
+    wire r_start_o[20:0];
+    wire [31:0] r_r_o [20:0];
+    wire [33:0] r_d_o [20:0];
+    wire [33:0] r_neg_d_o [20:0];
+    wire [65:0] r_r_1_o [20:0];
+    wire [65:0] r_r_2_o [20:0];
+    wire [31:0] r_pos_q_o [20:0];
+    wire [31:0] r_neg_q_o [20:0];
+    wire [4:0] r_shift_o [20:0];
+    wire r_r_sign_o [20:0];
+    wire r_d_sign_o [20:0];
+    wire r_unsign_o [20:0];
+    wire r_rem_o [20:0];
+
     assign q = r_pos_q_o[19] - r_neg_q_o[19]; // for restoration (18)
     assign r = r_r_1_o[19] + r_r_2_o[19]; // for restoration (18)
 
@@ -62,21 +78,6 @@ module SRTDivider (
 
     assign DIV_out = r_rem_o[20] ? remain : quotient;
     assign DIV_done = r_start_o[20];
-
-    // reg
-    wire r_start_o[20:0]; // 19 clks, 18 regs
-    wire [31:0] r_r_o [20:0]; 
-    wire [33:0] r_d_o [20:0]; 
-    wire [33:0] r_neg_d_o [20:0];
-    wire [65:0] r_r_1_o [20:0];
-    wire [65:0] r_r_2_o [20:0];
-    wire [31:0] r_pos_q_o [20:0];
-    wire [31:0] r_neg_q_o [20:0];
-    wire [4:0] r_shift_o [20:0];
-    wire r_r_sign_o [20:0];
-    wire r_d_sign_o [20:0];
-    wire r_unsign_o [20:0];
-    wire r_rem_o [20:0];
 
     // stage EX0
     DivideLeftShift m_DivideLeftShift(

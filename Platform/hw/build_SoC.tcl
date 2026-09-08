@@ -6,11 +6,13 @@ set proj_name "SoC"
 create_project ${proj_name} ./${proj_name} -part xc7a100tcsg324-1 -force
 
 # Source files
-set v_files [glob -nocomplain "$hw_srcs/sources_1/imports/*.v"]
-if {[llength $v_files] > 0} { add_files -norecurse $v_files }
+set rtl_files [glob -nocomplain \
+    "$hw_srcs/sources_1/imports/*.v" \
+    "$hw_srcs/sources_1/imports/*.sv"]
+if {[llength $rtl_files] > 0} { add_files -norecurse $rtl_files }
 
-set v_files [glob -nocomplain "$hw_srcs/*.v"]
-if {[llength $v_files] > 0} { add_files -norecurse $v_files }
+set rtl_files [glob -nocomplain "$hw_srcs/*.v" "$hw_srcs/*.sv"]
+if {[llength $rtl_files] > 0} { add_files -norecurse $rtl_files }
 
 set ip_files [glob -nocomplain "$hw_srcs/sources_1/ip/*/*.xci"]
 if {[llength $ip_files] > 0} { add_files -norecurse $ip_files }
@@ -36,6 +38,18 @@ if {[file exists $hex_path]} {
 
 update_compile_order -fileset sources_1
 open_bd_design [get_files MMIO.bd]
+
+# Vivado locks a block design when one of its generated IP instances is older
+# than the IP revision installed with the current tool release.  Upgrade those
+# instances before validating the design so a fresh clone can be built without
+# first opening the project in the GUI.
+set locked_ips [get_ips -quiet -filter {IS_LOCKED == 1}]
+if {[llength $locked_ips] > 0} {
+    puts ">> \[TCL\] Updating locked IPs: $locked_ips"
+    report_ip_status
+    upgrade_ip $locked_ips
+    save_bd_design
+}
 
 
 set elf_obj [get_files -quiet "*/bootloader.elf"]

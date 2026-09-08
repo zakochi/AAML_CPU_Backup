@@ -37,12 +37,7 @@ module Control (
     // Fence
     output fetch_invalid_o,
 
-    output is_impl_o,
-    
-    // Cache Operations
-    output is_dflush_o,
-    output is_dinval_o,
-    output is_dwb_o
+    output is_impl_o
 );
 
 parameter CSR_FRM = 12'h002;
@@ -156,7 +151,8 @@ wire is_impl_w =((inst&`INST_ADDI_MASK) == `INST_ADDI)   ||
                 // zicbom
                 ((inst&`INST_CBO_FLUSH_MASK) == `INST_CBO_FLUSH) ||
                 ((inst&`INST_CBO_INVAL_MASK) == `INST_CBO_INVAL) || 
-                ((inst&`INST_CBO_CLEAN_MASK) == `INST_CBO_CLEAN);
+                ((inst&`INST_CBO_CLEAN_MASK) == `INST_CBO_CLEAN) || 
+                ((inst&`INST_CBO_ZERO_MASK) == `INST_CBO_ZERO) ;
 
 wire reg_wr_en_w = ((inst&`INST_ADDI_MASK) == `INST_ADDI)    ||
                     ((inst&`INST_SLTI_MASK) == `INST_SLTI)   ||
@@ -269,6 +265,7 @@ wire is_lsu_w = ((inst&`INST_LB_MASK) == `INST_LB)   ||
                 ((inst&`INST_CBO_FLUSH_MASK) == `INST_CBO_FLUSH) ||
                 ((inst&`INST_CBO_INVAL_MASK) == `INST_CBO_INVAL) || 
                 ((inst&`INST_CBO_CLEAN_MASK) == `INST_CBO_CLEAN) || 
+                ((inst&`INST_CBO_ZERO_MASK) == `INST_CBO_ZERO) ||
                 // fence.i
                 ((inst&`INST_IFENCE_MASK) == `INST_IFENCE);
 
@@ -281,14 +278,6 @@ wire fetch_invalid_w = ((inst&`INST_FENCE_MASK) == `INST_FENCE)   ||
 wire is_npu_w = is_npu_inst_w;
 
 wire [2:0] MUL_DIV_ctrl_w = {3{is_MUL_DIV_w}} & funct3;
-
-wire is_csr_dflush     = ((inst & `INST_CSRRW_MASK) == `INST_CSRRW) && (inst[31:20] == `CSR_DFLUSH);
-wire is_csr_dinval     = ((inst & `INST_CSRRW_MASK) == `INST_CSRRW) && (inst[31:20] == `CSR_DINVALIDATE);
-wire is_csr_dwb        = ((inst & `INST_CSRRW_MASK) == `INST_CSRRW) && (inst[31:20] == `CSR_DWRITEBACK);
-
-assign is_dflush_o = is_csr_dflush | ((inst&`INST_CBO_FLUSH_MASK) == `INST_CBO_FLUSH);
-assign is_dinval_o = is_csr_dinval | ((inst&`INST_CBO_INVAL_MASK) == `INST_CBO_INVAL);
-assign is_dwb_o    = is_csr_dwb    | ((inst&`INST_CBO_CLEAN_MASK) == `INST_CBO_CLEAN);
 
 assign is_impl_o = is_impl_w;
 assign reg_wr_en_o = reg_wr_en_w;
@@ -309,6 +298,7 @@ assign reg_w_sel_o = reg_w_sel_r;
 assign is_npu_o = is_npu_w;
 assign bypass_sel_o = bypass_sel_r;
 assign fetch_invalid_o = fetch_invalid_w;
+
 
 always @(*) begin
     alu_ctrl_r   = 4'b0000;
@@ -343,7 +333,7 @@ always @(*) begin
     end
 
     // mem_ctrl
-    if (is_lsu_w || is_csr_dflush || is_csr_dinval || is_csr_dwb) begin
+    if (is_lsu_w) begin
         if      ((inst&`INST_LB_MASK) == `INST_LB)   mem_ctrl_r = 4'b1001; // LB
         else if ((inst&`INST_LBU_MASK) == `INST_LBU) mem_ctrl_r = 4'b0001; // LBU
 
@@ -359,9 +349,10 @@ always @(*) begin
         else if ((inst&`INST_FLW_MASK) == `INST_FLW) mem_ctrl_r = 4'b0100; // FLW
         else if ((inst&`INST_FSW_MASK) == `INST_FSW) mem_ctrl_r = 4'b1100; // FSW
 
-        else if (((inst&`INST_CBO_FLUSH_MASK) == `INST_CBO_FLUSH) || is_csr_dflush) mem_ctrl_r = 4'b0011; // cbo.flush
-        else if (((inst&`INST_CBO_INVAL_MASK) == `INST_CBO_INVAL) || is_csr_dinval) mem_ctrl_r = 4'b0111; // cbo.inval
-        else if (((inst&`INST_CBO_CLEAN_MASK) == `INST_CBO_CLEAN) || is_csr_dwb)    mem_ctrl_r = 4'b1011; // cbo.clean
+        else if ((inst&`INST_CBO_FLUSH_MASK) == `INST_CBO_FLUSH) mem_ctrl_r = 4'b0011; // cbo.flush
+        else if ((inst&`INST_CBO_INVAL_MASK) == `INST_CBO_INVAL) mem_ctrl_r = 4'b0111; // cbo.inval
+        else if ((inst&`INST_CBO_CLEAN_MASK) == `INST_CBO_CLEAN) mem_ctrl_r = 4'b1011; // cbo.clean
+        else if ((inst&`INST_CBO_ZERO_MASK) == `INST_CBO_ZERO)   mem_ctrl_r = 4'b1111; // cbo.zero
         else if ((inst&`INST_IFENCE_MASK) == `INST_IFENCE)       mem_ctrl_r = 4'b0110; // fence.i
         else mem_ctrl_r = 4'b0000;                                         // undefined
     end

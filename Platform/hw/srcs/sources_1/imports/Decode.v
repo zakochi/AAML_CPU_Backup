@@ -4,8 +4,8 @@ module Decode (
     input en,
     input clear,
 
-    input inst_valid_i, 
-    
+    input inst_valid_i,
+	
     input [31:0] pc_i,
     input [31:0] pc_p4_i,
     input [31:0] inst_i,
@@ -58,12 +58,7 @@ module Decode (
     // Fence
     output fetch_invalid_o,
 
-    output is_impl_o,
-    
-    // Cache Operations
-    output is_dflush_o,
-    output is_dinval_o,
-    output is_dwb_o
+    output is_impl_o
 );
 wire        ID_pc_valid_out;
 wire [31:0] ID_pc_out;
@@ -174,11 +169,7 @@ Control m_Control(
 
     .bypass_sel_o(bypass_sel),
 
-    .fetch_invalid_o(fetch_invalid),
-    
-    .is_dflush_o(is_dflush_o),
-    .is_dinval_o(is_dinval_o),
-    .is_dwb_o(is_dwb_o)
+    .fetch_invalid_o(fetch_invalid)
 );
 assign is_impl_o = is_impl;
 assign reg_wr_en_o = reg_wr_en;

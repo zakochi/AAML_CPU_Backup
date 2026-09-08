@@ -33,7 +33,6 @@ module I_bus(
     wire is_rom_addr   = (fetch_addr <= IROM_END);
     wire is_cache_addr = (fetch_addr <= ICache_END) && (fetch_addr >= ICache_BASE);
 
-
     reg [31:0] inst_pc_reg;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) 

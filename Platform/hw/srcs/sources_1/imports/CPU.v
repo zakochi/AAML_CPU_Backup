@@ -63,10 +63,11 @@ module CPU(
     output [31:0] npu_funct7
 );
 
-(* mark_debug = "true" *)    wire        cpu_req_inst;
-(* mark_debug = "true" *)    wire        cpu_inst_rdy;
-(* mark_debug = "true" *)    wire [31:0] cpu_inst_pc;
-(* mark_debug = "true" *)    wire [31:0] cpu_inst_data;
+    wire        cpu_req_inst;
+    wire        cpu_inst_rdy;
+    wire [31:0] cpu_inst_pc;
+    wire [31:0] cpu_inst_data;
+    wire        cpu_inst_pred_taken;
 
     wire        cpu_redirect_valid;
     wire [31:0] cpu_redirect_pc;
@@ -74,12 +75,25 @@ module CPU(
     wire        cpu_invalidate;
     wire        cpu_invalid_complete;
 
+    wire        cpu_resolve_valid;
+    wire        cpu_resolve_is_branch;
+    wire        cpu_resolve_is_jump;
+    wire        cpu_resolve_taken;
+    wire [31:0] cpu_resolve_pc;
+    wire [31:0] cpu_resolve_target;
+
     Frontend_top u_Frontend (
         .clk              (clk),
         .rst_n            (rst_n),
 
         .redirect_valid_i (cpu_redirect_valid),
         .redirect_pc_i    (cpu_redirect_pc),
+        .resolve_valid_i  (cpu_resolve_valid),
+        .resolve_is_branch_i(cpu_resolve_is_branch),
+        .resolve_is_jump_i(cpu_resolve_is_jump),
+        .resolve_taken_i  (cpu_resolve_taken),
+        .resolve_pc_i     (cpu_resolve_pc),
+        .resolve_target_i (cpu_resolve_target),
         .invalidate_i     (cpu_invalidate),
         .invalid_complete (cpu_invalid_complete),
         
@@ -87,6 +101,7 @@ module CPU(
         .inst_rdy_o       (cpu_inst_rdy),
         .inst_pc_o        (cpu_inst_pc),
         .inst_o           (cpu_inst_data),
+        .inst_pred_taken_o(cpu_inst_pred_taken),
 
         .rm_rdy           (ibus_rm_rdy),
         .rm_success       (ibus_rm_success),
@@ -103,12 +118,19 @@ module CPU(
         .inst_rdy_i       (cpu_inst_rdy),
         .inst_pc_i        (cpu_inst_pc),
         .inst_i           (cpu_inst_data),
+        .inst_pred_taken_i(cpu_inst_pred_taken),
         .req_inst_o       (cpu_req_inst),
         
         .redirect_valid_o (cpu_redirect_valid),
         .redirect_pc_o    (cpu_redirect_pc),
         .invalidate_o     (cpu_invalidate),
         .invalid_complete_i(cpu_invalid_complete),
+        .resolve_valid_o  (cpu_resolve_valid),
+        .resolve_is_branch_o(cpu_resolve_is_branch),
+        .resolve_is_jump_o(cpu_resolve_is_jump),
+        .resolve_taken_o  (cpu_resolve_taken),
+        .resolve_pc_o     (cpu_resolve_pc),
+        .resolve_target_o (cpu_resolve_target),
 
         .dbus_rm_addr       (dbus_rm_addr),
         .dbus_rm_rdy        (dbus_rm_rdy),

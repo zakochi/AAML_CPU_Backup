@@ -4,8 +4,9 @@
 
 module IB_queue
 #(
-    parameter DATASIZE = 32, 
-    parameter DEPTH = 16     // Maximal element of queue.
+    parameter DATASIZE = 32,
+    parameter DEPTH = 16,
+    parameter CNT_WIDTH = $clog2(DEPTH+1)
 )  
 (
     input clk_i,
@@ -26,7 +27,6 @@ localparam ADDRSIZE = 32;
 reg [DATASIZE-1:0] ram_q[DEPTH-1:0];
 
 localparam PTR_WIDTH = $clog2(DEPTH);
-localparam CNT_WIDTH = $clog2(DEPTH+1);
 reg [PTR_WIDTH-1:0] wr_ptr;
 reg [PTR_WIDTH-1:0] rd_ptr;
 reg [CNT_WIDTH-1:0] count;

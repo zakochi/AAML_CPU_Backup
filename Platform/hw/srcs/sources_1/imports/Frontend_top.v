@@ -5,6 +5,14 @@ module Frontend_top(
     input         redirect_valid_i,
     input  [31:0] redirect_pc_i,
 
+    // Resolved control-flow update from the backend
+    input         resolve_valid_i,
+    input         resolve_is_branch_i,
+    input         resolve_is_jump_i,
+    input         resolve_taken_i,
+    input  [31:0] resolve_pc_i,
+    input  [31:0] resolve_target_i,
+
     input         invalidate_i,
     output        invalid_complete,
 
@@ -12,6 +20,7 @@ module Frontend_top(
     output        inst_rdy_o,
     output [31:0] inst_pc_o,
     output [31:0] inst_o,
+    output        inst_pred_taken_o,
 
     input         rm_rdy,
     input         rm_success,
@@ -21,29 +30,63 @@ module Frontend_top(
     output [31:0] rm_addr
 );
 
-(* mark_debug = "true" *)   wire        ibuf_ready;
-(* mark_debug = "true" *)   wire        ibuf_almost_full;
-(* mark_debug = "true" *)   wire        ibuf_push;
-(* mark_debug = "true" *)   wire        ibuf_flush;
+wire        ibuf_ready;
+wire        ibuf_almost_full;
+wire        ibuf_push;
+wire        ibuf_flush;
+wire        fetch_valid;
+wire        ibus_ready;
+wire        ibus_hit;
+wire        inst_valid;
+wire [31:0] fetch_addr;
+wire [31:0] inst_data;
+wire [31:0] inst_pc;
+wire        ibus_flush;
+wire        ibus_invld;
+wire        flush_status;
 
-(* mark_debug = "true" *)   wire        fetch_valid;
-(* mark_debug = "true" *)   wire        ibus_ready;
-(* mark_debug = "true" *)   wire        ibus_hit;
-(* mark_debug = "true" *)   wire        inst_valid;
-(* mark_debug = "true" *)   wire [31:0] fetch_addr;
+wire        btb_lookup_hit;
+wire        btb_lookup_predict_taken;
+wire        btb_lookup_is_jump;
+wire [31:0] btb_lookup_target;
+wire        prediction_taken = btb_lookup_predict_taken;
 
-(* mark_debug = "true" *)   wire [31:0] inst_data;
-(* mark_debug = "true" *)   wire [31:0] inst_pc;
-  
-(* mark_debug = "true" *)   wire        ibus_flush;
-(* mark_debug = "true" *)   wire        ibus_invld;
-(* mark_debug = "true" *)   wire        flush_status;
+BTB #(.ENTRY_NUM(32)) m_btb (
+    .clk               (clk),
+    .rst_n             (rst_n),
+    .lookup_pc_i       (fetch_addr),
+    .lookup_hit_o      (btb_lookup_hit),
+    .lookup_predict_taken_o(btb_lookup_predict_taken),
+    .lookup_is_jump_o  (btb_lookup_is_jump),
+    .lookup_target_o   (btb_lookup_target),
+    .update_en_i       (resolve_valid_i),
+    .update_pc_i       (resolve_pc_i),
+    .update_target_i   (resolve_target_i),
+    .update_is_jump_i  (resolve_is_jump_i),
+    .update_taken_i    (resolve_taken_i)
+);
+
+// I_bus registers the PC of an accepted request for the returned instruction.
+// Register the prediction on the exact same handshake so metadata stays
+// aligned with inst_pc/inst_data when the response is pushed into Inst_buf.
+reg        issued_pred_taken;
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        issued_pred_taken <= 1'b0;
+    end else if (redirect_valid_i || invalidate_i) begin
+        issued_pred_taken <= 1'b0;
+    end else if (fetch_valid && ibus_ready) begin
+        issued_pred_taken <= prediction_taken;
+    end
+end
 
     Fetch_ctrl m_fetch_ctrl (
         .clk                (clk),
         .rst_n              (rst_n),
         .redirect_valid_i   (redirect_valid_i),
         .redirect_pc_i      (redirect_pc_i),
+        .prediction_taken_i (prediction_taken),
+        .prediction_target_i(btb_lookup_target),
         .invalidate_i       (invalidate_i),
         .invalid_complete   (invalid_complete),
         .ibuf_ready_i       (ibuf_ready),
@@ -87,12 +130,14 @@ module Frontend_top(
         .push_valid_i   (ibuf_push),
         .push_pc_i      (inst_pc),
         .push_inst_i    (inst_data),
+        .push_pred_taken_i (issued_pred_taken),
         .push_ready_o   (ibuf_ready),
         .almost_full_o  (ibuf_almost_full), 
         .flush          (ibuf_flush),
         .inst_rdy_o     (inst_rdy_o),
         .inst_pc_o      (inst_pc_o),
         .inst_o         (inst_o),
+        .inst_pred_taken_o (inst_pred_taken_o),
         .req_inst_i     (req_inst_i)
     );
 

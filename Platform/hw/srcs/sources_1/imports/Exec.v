@@ -30,6 +30,15 @@ module Exec(
     // Br and Jump
     ,input wire        is_j_i
     ,input wire        is_br_i
+    // RAS: whether ID's departing instruction had a speculative return
+    // prediction, and what it was -- carried through so EX can compare
+    // against the real ALU-computed target (see Backend_top.v's br_flush)
+    ,input wire        ras_predicted_i
+    ,input wire [31:0] ras_predicted_pc_i
+    // ID-computed jalr target + whether it was safe to compute (no rs1
+    // hazard) -- see Backend_top.v's id_jalr_target/id_rs1_hazard comment
+    ,input wire        jalr_target_valid_i
+    ,input wire [31:0] jalr_target_i
     // ALU
     ,input wire        ALU_sel1_i
     ,input wire        ALU_sel2_i
@@ -53,17 +62,14 @@ module Exec(
     ,input wire [1:0] bypass_sel_i
     // fence
     ,input wire fetch_invalid_i
-    
-    // cache operations
-    ,input wire is_dflush_i
-    ,input wire is_dinval_i
-    ,input wire is_dwb_i
 
     // forwarding
+    ,input [4:0]  MEM_rd_i
+    ,input        MEM_reg_wr_en_i
+    ,input [31:0] MEM_fwd_data_i
     ,input [4:0] WB_rd_i
     ,input WB_reg_wr_en_i
     ,input [31:0] wb_data_i
-
 //=================================
     // output
     // data
@@ -93,11 +99,22 @@ module Exec(
     // Br and Jump
     ,output wire        is_j_o
     ,output wire        is_br_o
+    ,output wire        ras_predicted_o
+    ,output wire [31:0] ras_predicted_pc_o
+    ,output wire        jalr_target_valid_o
+    ,output wire [31:0] jalr_target_o
     // ALU
     ,output wire [3:0]  ALU_ctrl_o
     ,output wire [31:0] ALU_o
     // Branch
     ,output wire        br_taken_o
+
+    // load/store address + mask + rotated store-data, computed here instead of lsu.v (Phase 1 roadmap)
+    ,output wire [31:0] mem_addr_o
+    ,output wire [ 3:0] mem_mask_o
+    ,output wire [31:0] mem_data_wr_o
+    // cacheable-address classification, computed here instead of MEM.v (Phase 1 roadmap)
+    ,output wire         mem_cacheable_o
 
     // MUL/DIV
     ,output wire is_MUL_DIV_o
@@ -106,11 +123,6 @@ module Exec(
     // csr
     ,output wire [31:0] csr_rd_data_o
 
-	// lsu
-	,output wire [31:0] lsu_addr_o
-    ,output wire [31:0] lsu_wdata_o
-    ,output wire [3:0]  lsu_mask_o
-	
     // npu
     ,output wire is_npu_o
 
@@ -118,21 +130,16 @@ module Exec(
     ,output wire [31:0] bypass_o
 
     ,output wire fetch_invalid_o
-    
-    // cache operations
-    ,output wire is_dflush_o
-    ,output wire is_dinval_o
-    ,output wire is_dwb_o
-    
-	// EX control
+// EX control
     ,output wire EX_start_o
     ,output wire MUL_DIV_start_o
     ,output wire NPU_start_o
-    ,output wire LSU_start_o
+    ,output wire mem_req_o
     
-    ,input wire MUL_DIV_done_i
+    ,input wire MUL_done_i
+    ,input wire DIV_done_i
     ,input wire NPU_done_i
-    ,input wire LSU_done_i
+    //,input wire SYS_done_i
     
     ,output wire EX_done_o
 );
@@ -144,6 +151,8 @@ wire ALU_sel2_o;
 
 wire [2:0] cmp_op_o;
 wire [11:0] csr_addr_o;
+wire is_csr_o;
+wire SYS_done;
 
 // data
 PipelineRegister #(.WIDTH( 1)) reg_is_impl   (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(is_impl_i),   .data_o(is_impl_o));
@@ -171,6 +180,10 @@ PipelineRegister #(.WIDTH(4))  reg_mem_ctrl  (.clk(clk), .rst_n(rst_n), .clear(c
 // Br and Jump
 PipelineRegister #(.WIDTH(1))  reg_is_j      (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en),  .data_i(is_j_i), .data_o(is_j_o));
 PipelineRegister #(.WIDTH(1))  reg_is_br     (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en),  .data_i(is_br_i), .data_o(is_br_o));
+PipelineRegister #(.WIDTH(1))  reg_ras_predicted    (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en),  .data_i(ras_predicted_i),    .data_o(ras_predicted_o));
+PipelineRegister #(.WIDTH(32)) reg_ras_predicted_pc (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en),  .data_i(ras_predicted_pc_i), .data_o(ras_predicted_pc_o));
+PipelineRegister #(.WIDTH(1))  reg_jalr_target_valid (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(jalr_target_valid_i), .data_o(jalr_target_valid_o));
+PipelineRegister #(.WIDTH(32)) reg_jalr_target       (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(jalr_target_i),       .data_o(jalr_target_o));
 // ALU
 PipelineRegister #(.WIDTH(1))  reg_ALU_sel1  (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en),  .data_i(ALU_sel1_i), .data_o(ALU_sel1_o));
 PipelineRegister #(.WIDTH(1))  reg_ALU_sel2  (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en),  .data_i(ALU_sel2_i), .data_o(ALU_sel2_o));
@@ -191,42 +204,36 @@ PipelineRegister #(.WIDTH(2))  reg_bypass_sel (.clk(clk), .rst_n(rst_n), .clear(
 // Fence
 PipelineRegister #(.WIDTH(1))  reg_fetch_invalid (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en),  .data_i(fetch_invalid_i), .data_o(fetch_invalid_o));
 
-// Cache Operations
-PipelineRegister #(.WIDTH(1)) reg_is_dflush (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(is_dflush_i), .data_o(is_dflush_o));
-PipelineRegister #(.WIDTH(1)) reg_is_dinval (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(is_dinval_i), .data_o(is_dinval_o));
-PipelineRegister #(.WIDTH(1)) reg_is_dwb    (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(is_dwb_i),    .data_o(is_dwb_o));
-
 
 // Forwarding
-wire EX_fwd1_sel;
-wire EX_fwd2_sel;
+wire [1:0] EX_fwd1_sel;
+wire [1:0] EX_fwd2_sel;
 ForwardUnit m_Forward(
-    .EX_rs1(rs1_o),
-    .EX_rs2(rs2_o),
-    .EX_rs3(rs3_o),
-    
-    .WB_rd(WB_rd_i),
-    .WB_reg_wr_en(WB_reg_wr_en_i),
-    
-    .EX_fwd_sel1(EX_fwd1_sel),
-    .EX_fwd_sel2(EX_fwd2_sel)
+    .EX_rs1(rs1_o), .EX_rs2(rs2_o), .EX_rs3(rs3_o),
+    .MEM_rd(MEM_rd_i), .MEM_reg_wr_en(MEM_reg_wr_en_i),
+    .WB_rd(WB_rd_i),   .WB_reg_wr_en(WB_reg_wr_en_i),
+    .EX_fwd_sel1(EX_fwd1_sel), .EX_fwd_sel2(EX_fwd2_sel)
 );
 
 wire [31:0] current_fwd_data1;
 wire [31:0] current_fwd_data2;
 
-Mux2to1 #(.size(32)) m_EX_fwd1_MUX(
-    .sel(EX_fwd1_sel),
-    .s0(wb_data_i),
-    .s1(reg_rd_data1_o),
-    .out(current_fwd_data1)
-);
-Mux2to1 #(.size(32)) m_EX_fwd2_MUX(
-    .sel(EX_fwd2_sel),
-    .s0(wb_data_i),
-    .s1(reg_rd_data2_o),
-    .out(current_fwd_data2)
-);
+// 0 = WB, 1 = register file, 2 = MEM (see ForwardUnit.v)
+reg [31:0] fwd1_r, fwd2_r;
+always @(*) begin
+    case (EX_fwd1_sel)
+        2'd0:    fwd1_r = wb_data_i;
+        2'd2:    fwd1_r = MEM_fwd_data_i;
+        default: fwd1_r = reg_rd_data1_o;
+    endcase
+    case (EX_fwd2_sel)
+        2'd0:    fwd2_r = wb_data_i;
+        2'd2:    fwd2_r = MEM_fwd_data_i;
+        default: fwd2_r = reg_rd_data2_o;
+    endcase
+end
+assign current_fwd_data1 = fwd1_r;
+assign current_fwd_data2 = fwd2_r;
 
 // EX start control
 wire bypass_start;
@@ -234,11 +241,19 @@ wire ALU_start;
 wire Br_start;
 wire SYS_start;
 
+// start logic
+/*
+set to 0 if
+    - first cycle of execution
+    - not executing
+set to 1 if
+    - not the first cycle of execution
+*/
 reg started;
 always @(posedge clk or negedge rst_n) begin
     if(!rst_n) started <= 0;
-    else begin     
-        if(EX_done_o || !(pc_valid_o && is_impl_o)) started <= 0;
+    else begin
+        if(en || !(pc_valid_o && is_impl_o)) started <= 0;
         else if((pc_valid_o && is_impl_o) && !started)
             started <= 1;
     end
@@ -259,6 +274,7 @@ end
 
 assign reg_fwd_data1_o = started ? held_fwd_data1 : current_fwd_data1;
 assign reg_fwd_data2_o = started ? held_fwd_data2 : current_fwd_data2;
+// ====================================================================
 
 // ALU src
 wire [31:0] ALU_src1, ALU_src2;
@@ -281,9 +297,76 @@ assign Br_start  = EX_start_o && (is_br_o || is_j_o);
 assign SYS_start = EX_start_o && is_csr_o;
 assign MUL_DIV_start_o = EX_start_o && is_MUL_DIV_o;
 assign NPU_start_o = EX_start_o && is_npu_o;
-assign LSU_start_o = EX_start_o && 
-    (mem_wr_en_o || mem_rd_en_o || (mem_ctrl_o[1:0] == 2'b11) || (mem_ctrl_o[2:1] == 2'b11) ||
-     is_dflush_o || is_dinval_o || is_dwb_o);
+wire is_mem_op_w = mem_wr_en_o || mem_rd_en_o
+                || (mem_ctrl_o[1:0] == 2'b11)      // Zicbom cbo.*
+                || (mem_ctrl_o[2:1] == 2'b11);     // fence.i
+assign mem_req_o = EX_start_o && is_mem_op_w;
+
+// Load/store address + byte mask + rotated store-data =====
+// decode mirrors lsu.v's former lb_inst/lh_inst/.../sw_inst (now computed here, one cycle earlier)
+wire mem_is_lb_w = (mem_ctrl_o[2:0] == 3'b001) & mem_rd_en_o & mem_req_o;
+wire mem_is_lh_w = (mem_ctrl_o[2:0] == 3'b010) & mem_rd_en_o & mem_req_o;
+wire mem_is_lw_w = (mem_ctrl_o[2:0] == 3'b100) & mem_rd_en_o & mem_req_o;
+wire mem_is_sb_w = (mem_ctrl_o[2:0] == 3'b001) & mem_wr_en_o & mem_req_o;
+wire mem_is_sh_w = (mem_ctrl_o[2:0] == 3'b010) & mem_wr_en_o & mem_req_o;
+wire mem_is_sw_w = (mem_ctrl_o[2:0] == 3'b100) & mem_wr_en_o & mem_req_o;
+
+assign mem_addr_o = reg_fwd_data1_o + imm_o;
+
+// Cacheable-address classification, moved here from MEM.v: same range check
+// mmu.v's d_cachable uses (mmu.v:3-4,76), duplicated as a plain combinational
+// function of mem_addr_o so MEM.v no longer has to re-derive it after the
+// address arrives one stage later.
+localparam [31:0] D_ADDR_MIN = 32'h6000_0000;
+localparam [31:0] D_ADDR_MAX = 32'hFFFF_FFFF;
+assign mem_cacheable_o = (mem_addr_o >= D_ADDR_MIN) && (mem_addr_o <= D_ADDR_MAX);
+
+reg [31:0] mem_data_wr_r;
+reg [ 3:0] mem_mask_r;
+always @(*) begin
+    mem_mask_r = 4'b0000; mem_data_wr_r = 32'b0;
+    if (mem_is_sw_w) begin
+        case (mem_addr_o[1:0])
+        2'b11:   mem_data_wr_r = {reg_fwd_data2_o[7:0], 24'h0};
+        2'b10:   mem_data_wr_r = {reg_fwd_data2_o[15:0], 16'h0};
+        2'b01:   mem_data_wr_r = {reg_fwd_data2_o[23:0], 8'h0};
+        2'b00:   mem_data_wr_r = reg_fwd_data2_o;
+        endcase
+    end else if (mem_is_sh_w) begin
+        case (mem_addr_o[1:0])
+        2'b11:   mem_data_wr_r = {reg_fwd_data2_o[7:0], 24'h0};
+        2'b10:   mem_data_wr_r = {reg_fwd_data2_o[15:0], 16'h0};
+        2'b01:   mem_data_wr_r = {8'h0, reg_fwd_data2_o[15:0], 8'h0};
+        2'b00:   mem_data_wr_r = {16'h0, reg_fwd_data2_o[15:0]};
+        endcase
+    end else if (mem_is_sb_w) begin
+        case (mem_addr_o[1:0])
+        2'b11:   mem_data_wr_r = {reg_fwd_data2_o[7:0], 24'h0};
+        2'b10:   mem_data_wr_r = {{8'h0, reg_fwd_data2_o[7:0]}, 16'h0};
+        2'b01:   mem_data_wr_r = {{16'h0, reg_fwd_data2_o[7:0]}, 8'h0};
+        2'b00:   mem_data_wr_r = {24'h0, reg_fwd_data2_o[7:0]};
+        endcase
+    end
+
+    if (mem_is_sw_w || mem_is_lw_w) begin
+        case (mem_addr_o[1:0])
+        2'b11: mem_mask_r = 4'b1000; 2'b10: mem_mask_r = 4'b1100;
+        2'b01: mem_mask_r = 4'b1110; 2'b00: mem_mask_r = 4'b1111;
+        endcase
+    end else if (mem_is_sh_w || mem_is_lh_w) begin
+        case (mem_addr_o[1:0])
+        2'b11: mem_mask_r = 4'b1000; 2'b10: mem_mask_r = 4'b1100;
+        2'b01: mem_mask_r = 4'b0110; 2'b00: mem_mask_r = 4'b0011;
+        endcase
+    end else if (mem_is_sb_w || mem_is_lb_w) begin
+        case (mem_addr_o[1:0])
+        2'b11: mem_mask_r = 4'b1000; 2'b10: mem_mask_r = 4'b0100;
+        2'b01: mem_mask_r = 4'b0010; 2'b00: mem_mask_r = 4'b0001;
+        endcase
+    end
+end
+assign mem_mask_o    = mem_mask_r;
+assign mem_data_wr_o = mem_data_wr_r;
 
 // ALU =========================
 wire ALU_done;
@@ -330,33 +413,31 @@ CSR m_CSR(
 
 assign SYS_done = SYS_start;
 
-// LSU ==========================
-assign lsu_addr_o = reg_fwd_data1_o + imm_o;
-assign lsu_wdata_o = reg_fwd_data2_o;
+// EX done logic
+//
+// Memory is dispatch-and-forget again: mem_req_o itself (the EX_start_o pulse
+// for a load/store/CBO/fence.i, already qualified by is_mem_op_w) is what
+// retires the instruction out of EX, not a completion strobe. EX no longer
+// knows or cares when the access actually finishes -- MEM.v owns that, using
+// the request register it already latches off this same mem_req_o pulse.
+// This brings the load-use hazard back (a dependent instruction can enter EX
+// before the load's data exists), so something downstream of EX -- MEM.v's
+// own busy/admission tracking plus a stall into EX -- has to interlock it;
+// EX itself has no completion signal left to interlock on.
+//
+// MUL/DIV are unaffected by this: both still hold EX until their own
+// completion strobe, same as before.
+//
+// Each completion strobe is qualified by the instruction actually in EX. The
+// units' done pulses are one cycle wide and are not otherwise tied to who owns
+// them, so an unqualified strobe could retire an unrelated instruction that
+// happened to be sitting in EX.
+wire MUL_done_w = MUL_done_i && is_MUL_DIV_o && ~MUL_DIV_ctrl_o[2];
+wire DIV_done_w = DIV_done_i && is_MUL_DIV_o &&  MUL_DIV_ctrl_o[2];
 
-wire is_lb_sb = (mem_ctrl_o[2:0] == 3'b001);
-wire is_lh_sh = (mem_ctrl_o[2:0] == 3'b010);
-wire is_lw_sw = (mem_ctrl_o[2:0] == 3'b100);
-
-reg [3:0] lsu_mask_r;
-always @(*) begin
-    lsu_mask_r = 4'b0000;
-    if (mem_rd_en_o || mem_wr_en_o) begin
-        if (is_lb_sb) begin
-            lsu_mask_r = 4'b0001;
-        end else if (is_lh_sh) begin
-            lsu_mask_r = 4'b0011;
-        end else if (is_lw_sw) begin
-            lsu_mask_r = 4'b1111;
-        end
-    end
-end
-assign lsu_mask_o = lsu_mask_r;
-
-assign EX_done_o = (!pc_valid_o) | (!is_impl_o) | 
-    ALU_done | Br_done | LSU_done_i | 
-    SYS_done | bypass_done | MUL_DIV_done_i | 
-    NPU_done_i | 
-    fetch_invalid_o; 
+assign EX_done_o = (!pc_valid_o) | (!is_impl_o) |
+    ALU_done | Br_done | mem_req_o | MUL_done_w |
+    SYS_done | bypass_done | DIV_done_w |
+    NPU_done_i;
 
 endmodule

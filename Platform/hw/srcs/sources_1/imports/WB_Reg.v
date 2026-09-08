@@ -1,65 +1,36 @@
+// MEM/WB pipeline register.
+//
+// Carries one already-selected result instead of the six parallel result buses
+// the 4-stage version needed: the EX/MEM boundary picks the EX-computed result,
+// and the MEM stage substitutes the multiply and load values that only become
+// readable there. By the time anything reaches here there is exactly one value.
 module WB_Reg (
     input  wire        clk,
     input  wire        rst_n,
+    input  wire        en,
+    input  wire        clear,
 
-    input en,
-    input clear,
-    // data_in
     input  wire        is_impl_i,
     input  wire        pc_valid_i,
     input  wire [31:0] pc_i,
     input  wire [31:0] pc_p4_i,
-    input  wire [4:0]  rd_i,
-    
-    input  wire [31:0] bypass_i,
-    input  wire [31:0] ALU_i,
-    input  wire [31:0] MUL_DIV_i,
-    input  wire [31:0] NPU_i,
-    input  wire [31:0] mem_data_i,
-    input  wire [31:0] csr_rd_data_i,
-    
-    input  wire        is_mul_i,
-    
-    // control_in
+    input  wire [ 4:0] rd_i,
+    input  wire [31:0] result_i,
     input  wire        reg_wr_en_i,
-    input  wire [2:0]  reg_w_sel_i,
-    // ===================================
-    // data_out
+
     output wire        is_impl_o,
     output wire        pc_valid_o,
     output wire [31:0] pc_o,
     output wire [31:0] pc_p4_o,
-    output wire [4:0]  rd_o,
-    
-    output wire [31:0] bypass_o,
-    output wire [31:0] ALU_o,
-    output wire [31:0] MUL_DIV_o,
-    output wire [31:0] NPU_o,
-    output wire [31:0] mem_data_o, 
-    output wire [31:0] csr_rd_data_o,
-    
-    output wire        is_mul_o,
-    
-    // control_out
-    output wire        reg_wr_en_o,
-    output wire [2:0]  reg_w_sel_o
+    output wire [ 4:0] rd_o,
+    output wire [31:0] result_o,
+    output wire        reg_wr_en_o
 );
-    PipelineRegister #(.WIDTH( 1)) reg_is_impl   (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(is_impl_i),   .data_o(is_impl_o));
-    PipelineRegister #(.WIDTH( 1)) reg_pc_valid  (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(pc_valid_i),   .data_o(pc_valid_o));
-    PipelineRegister #(.WIDTH(32)) reg_pc        (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en),  .data_i(pc_i),      .data_o(pc_o));
-    PipelineRegister #(.WIDTH(32)) reg_pc_p4     (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(pc_p4_i),     .data_o(pc_p4_o));
-    PipelineRegister #(.WIDTH(5))  reg_rd        (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(rd_i),       .data_o(rd_o));
-    
-    PipelineRegister #(.WIDTH(32)) reg_bypass    (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(bypass_i),   .data_o(bypass_o));
-    PipelineRegister #(.WIDTH(32)) reg_alu       (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(ALU_i),  .data_o(ALU_o));
-    PipelineRegister #(.WIDTH(32)) reg_mul_div   (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(MUL_DIV_i),  .data_o(MUL_DIV_o));
-    PipelineRegister #(.WIDTH(32)) reg_npu       (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(NPU_i),  .data_o(NPU_o));
-    
-    PipelineRegister #(.WIDTH(32)) reg_mem_data  (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(mem_data_i), .data_o(mem_data_o));
-    PipelineRegister #(.WIDTH(32)) csr_rd_data   (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(csr_rd_data_i), .data_o(csr_rd_data_o));
-
-    PipelineRegister #(.WIDTH(1))  reg_is_mul    (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(is_mul_i), .data_o(is_mul_o));
-
-    PipelineRegister #(.WIDTH(1))  reg_reg_wr_en (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(reg_wr_en_i), .data_o(reg_wr_en_o));
-    PipelineRegister #(.WIDTH(3))  reg_reg_w_sel (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(reg_w_sel_i), .data_o(reg_w_sel_o));
+    PipelineRegister #(.WIDTH( 1)) r_is_impl   (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(is_impl_i),   .data_o(is_impl_o));
+    PipelineRegister #(.WIDTH( 1)) r_pc_valid  (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(pc_valid_i),  .data_o(pc_valid_o));
+    PipelineRegister #(.WIDTH(32)) r_pc        (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(pc_i),        .data_o(pc_o));
+    PipelineRegister #(.WIDTH(32)) r_pc_p4     (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(pc_p4_i),     .data_o(pc_p4_o));
+    PipelineRegister #(.WIDTH( 5)) r_rd        (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(rd_i),        .data_o(rd_o));
+    PipelineRegister #(.WIDTH(32)) r_result    (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(result_i),    .data_o(result_o));
+    PipelineRegister #(.WIDTH( 1)) r_reg_wr_en (.clk(clk), .rst_n(rst_n), .clear(clear), .en(en), .data_i(reg_wr_en_i), .data_o(reg_wr_en_o));
 endmodule

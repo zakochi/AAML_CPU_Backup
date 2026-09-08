@@ -1,11 +1,23 @@
 `timescale 1ns / 1ps
 module icache_plus(
-    input clk, input rst_n, input fetch_vld, input [31:0] fetch_addr,
-    input invalidate_i, input flush_i, output flush_status_o,
-    output icache_rdy_o, output reg [31:0] cpu_inst_o,
-    output reg i_exception, output hit_o, output reg icache_vld_o,
-    input rm_rdy, output reg [31:0] mem_addr, input rm_success,
-    input rm_complete, output reg req_rm, input [255:0] rm_data
+    input clk, 
+	input rst_n, 
+	input fetch_vld, 
+	input [31:0] fetch_addr,
+    input invalidate_i, 
+	input flush_i, 
+	output flush_status_o,
+    output icache_rdy_o, 
+	output reg [31:0] cpu_inst_o,
+    output reg i_exception, 
+	output hit_o, 
+	output reg icache_vld_o,
+    input rm_rdy, 
+	output reg [31:0] mem_addr, 
+	input rm_success,
+    input rm_complete, 
+	output reg req_rm, 
+	input [255:0] rm_data
 );
     reg fifo_en; wire fifo; reg wr0, wr1; reg [255:0] mem_data;
     wire [31:0] cpu_inst_0, cpu_inst_1;
@@ -45,7 +57,7 @@ module icache_plus(
             cs <= IDLE; vld_out_inst <= 0; req_rm <= 0; fifo_en <= 0;
             {wr_vld1, wr_vld0} <= 2'b00; vld_i <= 0; i_exception <= 0;
             mem_addr <= 0; icache_vld_o <= 0; invld_s <= 0; flush_s <= 0;
-            cpu_inst_o <= 32'h00000013; 
+            cpu_inst_o <= 32'h00000013; // NOP
         end else begin
             case(cs)
                 IDLE : begin

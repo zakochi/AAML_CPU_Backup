@@ -1,5 +1,7 @@
 #!/bin/bash
 # hw/run_hw.sh
+set -euo pipefail
+
 #XILINX_SETTING="/home/yc/Xilinx/Vivado/2024.1/settings64.sh"
 #source "$XILINX_SETTING" || { echo ">> [ERROR] Vivado settings not found!"; exit 1; }
 
@@ -33,13 +35,14 @@ ROOT_DIR=$(pwd)
 export BUILD_DIR="$ROOT_DIR/build"
 HW_DIR="$ROOT_DIR/hw"
 BIT_FINAL="$BUILD_DIR/out.bit"
-BOOT_HEX="$BUILD_DIR/build/boot/boot.hex" 
+BOOT_HEX="$BUILD_DIR/boot/boot.hex"
 
 NEEDS_SYNTH=true
+RTL_CHANGES=""
+HEX_CHANGES=""
 if [ -f "$BIT_FINAL" ]; then
     RTL_CHANGES=$(find "$HW_DIR/srcs" -newer "$BIT_FINAL" 2>/dev/null)
-    
-    HEX_CHANGES=""
+
     if [ -f "$BOOT_HEX" ]; then
         HEX_CHANGES=$(find "$BOOT_HEX" -newer "$BIT_FINAL" 2>/dev/null)
     fi
