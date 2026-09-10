@@ -9,7 +9,6 @@ project/
 runtime/
 templates/
 tflm_patches/
-tflite-micro/
 Platform/hw/srcs/sources_1/bd/MMIO/ipshared/
 vivado*.jou
 vivado*.log
