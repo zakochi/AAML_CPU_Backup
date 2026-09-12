@@ -7,6 +7,11 @@
 
 namespace {
 
+void terminal_clear_screen(void) {
+  // ANSI/VT100: clear the visible screen and move the cursor to the top-left.
+  printf("\033[2J\033[H");
+}
+
 void menu_print(const Menu* menu) {
   char underline[80];
   size_t title_len = strlen(menu->title);
@@ -22,6 +27,7 @@ void menu_print(const Menu* menu) {
     printf(" %c: %s\n", item->selection, item->description);
   }
   printf("%s> ", menu->prompt);
+  fflush(stdout);
 }
 
 const MenuItem* menu_get_selection(const Menu* menu) {
@@ -31,9 +37,9 @@ const MenuItem* menu_get_selection(const Menu* menu) {
   } while (c == '\n' || c == '\r');
 
   uart_putc(c);
+  terminal_clear_screen();
   for (const MenuItem* item = menu->items; item->selection; ++item) {
     if (c == item->selection) {
-      putchar('\n');
       return item;
     }
   }
@@ -47,6 +53,7 @@ const MenuItem* menu_get_selection(const Menu* menu) {
 void menu_run(const Menu* menu) {
   bool exit_now = false;
 
+  terminal_clear_screen();
   while (!exit_now) {
     menu_print(menu);
     const MenuItem* item = menu_get_selection(menu);
