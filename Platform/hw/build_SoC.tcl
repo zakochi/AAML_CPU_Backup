@@ -19,7 +19,7 @@ if {[llength $ip_files] > 0} { add_files -norecurse $ip_files }
 
 add_files -norecurse [file normalize "$hw_srcs/sources_1/bd/MMIO/MMIO.bd"]
 add_files -norecurse [file normalize "$hw_srcs/sources_1/imports/SoC.v"]
-add_files -fileset constrs_1 [file normalize "$hw_srcs/constrs_1/new/Nexys-A7-100T-Master.xdc"]
+add_files -fileset constrs_1 [file normalize "$hw_srcs/constrs_1/new/Arty-A7-100T-Master.xdc"]
 
 # riscv_defs.v
 set defs_file [file normalize "$hw_srcs/sources_1/riscv_defs.v"]

@@ -4,7 +4,7 @@ ENTRY(_start)
 
 MEMORY
 {
-    DDR2_RAM (rwx) : ORIGIN = 0x60000000, LENGTH = 128M
+    DDR3_RAM (rwx) : ORIGIN = 0x60000000, LENGTH = 256M
 }
 
 _STACK_SIZE = 512K;
@@ -20,21 +20,21 @@ SECTIONS
         *(.text .text.*)
         *(.gnu.linkonce.t.*)
         _etext = .;
-    } > DDR2_RAM
+    } > DDR3_RAM
 
     .rodata : {
         . = ALIGN(4);
         _srodata = .;
         *(.rodata .rodata.*)
         _erodata = .;
-    } > DDR2_RAM
+    } > DDR3_RAM
 
     .data : {
         . = ALIGN(4);
         _sdata = .;
         *(.data .data.*)
         _edata = .;
-    } > DDR2_RAM
+    } > DDR3_RAM
 
     .bss : {
         . = ALIGN(4);
@@ -45,21 +45,26 @@ SECTIONS
         . = ALIGN(4);
         _bss_end = .;
         __bss_end = .;
-    } > DDR2_RAM
+    } > DDR3_RAM
 
-    .stack : {
+    .stack (NOLOAD) : {
         . = ALIGN(16);
+        _stack_bottom = .;
         _stack_end = .;
         . += _STACK_SIZE;
         _stack_start = .;
-    } > DDR2_RAM
+        __stack_top = .;
+    } > DDR3_RAM
 
-    .heap : {
+    .heap (NOLOAD) : {
         . = ALIGN(8);
         _heap_start = .;
         . += _HEAP_SIZE;
         _heap_end = .;
-    } > DDR2_RAM
+    } > DDR3_RAM
 
-    _end = .;
+    _end = _heap_start;
+
+    ASSERT(_heap_end <= ORIGIN(DDR3_RAM) + LENGTH(DDR3_RAM),
+           "DDR3 RAM overflow: sections, stack, and heap exceed 256 MiB")
 }

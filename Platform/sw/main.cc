@@ -16,8 +16,8 @@
 namespace {
 
 void do_system_info(void) {
-  printf("[INFO] AAML RISC-V Platform\n");
-  printf("[INFO] DDR2 Range: 0x60000000 - 0x67FFFFFF\n");
+  printf("[INFO] TinyRISC-V SoC Platform\n");
+  printf("[INFO] DDR3 Range: 0x60000000 - 0x6FFFFFFF\n");
   printf("[INFO] Custom accelerator interface: CUSTOM-0\n");
   printf("[INFO] Clock: %u Hz\n", (unsigned)PLATFORM_CLOCK_HZ);
 #ifdef TFLM_MODEL_ENABLED
@@ -40,7 +40,7 @@ const MenuItem kMainItems[] = {
 };
 
 const Menu kMainMenu = {
-    "AAML RISC-V Platform",
+    "TinyRISC-V SoC Platform",
     "main",
     kMainItems,
 };
@@ -48,7 +48,6 @@ const Menu kMainMenu = {
 }  // namespace
 
 int main(void) {
-  printf("\nAAML RISC-V Platform software\n");
   menu_run(&kMainMenu);
   return 0;
 }

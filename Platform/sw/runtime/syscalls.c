@@ -1,4 +1,5 @@
 // sw/runtime/syscalls.c
+#include <errno.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -28,15 +29,33 @@ int32_t _write(int32_t file, char *ptr, int32_t len) {
     return len;
 }
 
-extern char _end;
+extern char _heap_start;
+extern char _heap_end;
+
 void *_sbrk(ptrdiff_t incr) {
-    static char *heap_ptr = &_end;
-    
-    heap_ptr = (char *)(((uintptr_t)heap_ptr + 7) & ~7);
-    
-    char *prev_heap_ptr = heap_ptr;
-    heap_ptr += incr;
-    return (void *)prev_heap_ptr;
+    static char *heap_ptr = &_heap_start;
+    const uintptr_t current = (uintptr_t)heap_ptr;
+    const uintptr_t heap_start = (uintptr_t)&_heap_start;
+    const uintptr_t heap_end = (uintptr_t)&_heap_end;
+    uintptr_t next;
+
+    if (incr >= 0) {
+        if ((uintptr_t)incr > heap_end - current) {
+            errno = ENOMEM;
+            return (void *)-1;
+        }
+        next = current + (uintptr_t)incr;
+    } else {
+        const uintptr_t decrease = (uintptr_t)(-(incr + 1)) + 1u;
+        if (decrease > current - heap_start) {
+            errno = ENOMEM;
+            return (void *)-1;
+        }
+        next = current - decrease;
+    }
+
+    heap_ptr = (char *)next;
+    return (void *)current;
 }
 
 
