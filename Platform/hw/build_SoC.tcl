@@ -6,9 +6,7 @@ set proj_name "SoC"
 create_project ${proj_name} ./${proj_name} -part xc7a100tcsg324-1 -force
 
 # Source files
-set rtl_files [glob -nocomplain \
-    "$hw_srcs/sources_1/imports/*.v" \
-    "$hw_srcs/sources_1/imports/*.sv"]
+set rtl_files [glob -nocomplain "$hw_srcs/sources_1/imports/*.v" "$hw_srcs/sources_1/imports/*.sv"]
 if {[llength $rtl_files] > 0} { add_files -norecurse $rtl_files }
 
 set rtl_files [glob -nocomplain "$hw_srcs/*.v" "$hw_srcs/*.sv"]
@@ -69,15 +67,49 @@ set_property top SoC [current_fileset]
 update_compile_order -fileset sources_1
 launch_runs impl_1 -to_step write_bitstream -jobs 8
 wait_on_run impl_1
-open_run impl_1
-puts "================ UTILIZATION REPORT ================"
-report_utilization
-puts "================ WORST TIMING PATH ================"
-report_timing -max_paths 1 -setup
 
 set bit_src [file normalize "./${proj_name}/${proj_name}.runs/impl_1/SoC.bit"]
 if {[file exists $bit_src]} {
     file mkdir "$root_dir/build"
     file copy -force $bit_src "$root_dir/build/out.bit"
 }
+
+set report_dir [file normalize "$root_dir/build/reports"]
+set timing_report "$report_dir/post_route_timing_summary.rpt"
+set npu_report "$report_dir/post_route_utilization_npu.rpt"
+
+file mkdir $report_dir
+open_run impl_1
+
+report_timing_summary \
+    -delay_type min_max \
+    -max_paths 10 \
+    -input_pins \
+    -file $timing_report
+set npu_cells [get_cells -hierarchical -quiet \
+    -filter {ORIG_REF_NAME == NPU || REF_NAME == NPU}]
+
+if {[file exists $npu_report]} {
+    file delete -force $npu_report
+}
+
+if {[llength $npu_cells] == 1} {
+    set npu_cell [lindex $npu_cells 0]
+    report_utilization \
+        -cells $npu_cell \
+        -hierarchical \
+        -file $npu_report
+    puts ">> \[TCL\] NPU utilization cell: [get_property NAME $npu_cell]"
+} elseif {[llength $npu_cells] == 0} {
+    puts ">> \[TCL\] WARNING: no implemented cell has REF_NAME or ORIG_REF_NAME NPU; NPU-only utilization report was not written"
+} else {
+    puts ">> \[TCL\] WARNING: multiple implemented NPU cells matched: [join [get_property NAME $npu_cells] {, }]"
+    puts ">> \[TCL\] WARNING: NPU-only utilization report was not written because the selection is ambiguous"
+}
+
+puts ">> \[TCL\] Post-route timing report: $timing_report"
+if {[file exists $npu_report]} {
+    puts ">> \[TCL\] Post-route NPU utilization report: $npu_report"
+}
+
 exit
