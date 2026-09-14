@@ -49,6 +49,29 @@ if {[llength $locked_ips] > 0} {
     save_bd_design
 }
 
+# CPU clock setting
+set cpu_freq_mhz 70.0
+set config_file [file normalize "$root_dir/sw/app/platform_config.h"]
+
+if {[file exists $config_file]} {
+    set fp [open $config_file r]
+    while {[gets $fp line] >= 0} {
+        if {[regexp {^\s*#define\s+PLATFORM_CLOCK_HZ\s+([0-9]+)u?} $line match val]} {
+            set cpu_freq_mhz [expr {$val / 1000000.0}]
+            break
+        }
+    }
+    close $fp
+    puts ">> \[TCL\] Successfully parsed PLATFORM_CLOCK_HZ = $val Hz ($cpu_freq_mhz MHz) from platform_config.h"
+} else {
+    puts ">> \[TCL\] WARNING: platform_config.h not found, using default $cpu_freq_mhz MHz"
+}
+
+
+set_property -dict [list \
+    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ 200.000 \
+    CONFIG.CLKOUT2_REQUESTED_OUT_FREQ $cpu_freq_mhz \
+] [get_bd_cells clk_wiz_0]
 
 set elf_obj [get_files -quiet "*/bootloader.elf"]
 if {$elf_obj != ""} {

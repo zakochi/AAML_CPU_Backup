@@ -1,8 +1,8 @@
 {
    "ActiveEmotionalView":"Default View",
    "Default View_Layers":"/cpu_psr_bus_struct_reset:true|/mig_7series_0_ui_clk_sync_rst:true|/M01_ARESETN_1:true|/cpu_psr_mb_reset:true|/ext_reset_in_0_1:true|",
-   "Default View_ScaleFactor":"0.860447",
-   "Default View_TopLeft":"1992,328",
+   "Default View_ScaleFactor":"1.3978",
+   "Default View_TopLeft":"2288,1120",
    "Display-IntfOthers":"true",
    "Display-IntfTypeAXIMM":"true",
    "Display-PortTypeReset":"true",
