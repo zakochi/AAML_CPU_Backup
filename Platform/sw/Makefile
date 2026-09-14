@@ -296,7 +296,7 @@ endif
 
 run: all
 	@sudo chmod 666 /dev/ttyUSB1 2>/dev/null || true
-	python3 upload.py $(BUILD_DIR)/main.bin
+	sudo python3 upload.py $(BUILD_DIR)/main.bin
 
 clean:
 	rm -rf $(BUILD_DIR)
