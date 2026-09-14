@@ -36,6 +36,8 @@ export BUILD_DIR="$ROOT_DIR/build"
 HW_DIR="$ROOT_DIR/hw"
 BIT_FINAL="$BUILD_DIR/out.bit"
 BOOT_HEX="$BUILD_DIR/boot/boot.hex"
+CONFIG_HEADER="$ROOT_DIR/sw/app/platform_config.h"
+CONFIG_CHANGES=""
 
 NEEDS_SYNTH=true
 RTL_CHANGES=""
@@ -46,16 +48,22 @@ if [ -f "$BIT_FINAL" ]; then
     if [ -f "$BOOT_HEX" ]; then
         HEX_CHANGES=$(find "$BOOT_HEX" -newer "$BIT_FINAL" 2>/dev/null)
     fi
+    
+    if [ -f "$CONFIG_HEADER" ]; then
+        CONFIG_CHANGES=$(find "$CONFIG_HEADER" -newer "$BIT_FINAL" 2>/dev/null)
+    fi
 
-    if [ -z "$RTL_CHANGES" ] && [ -z "$HEX_CHANGES" ]; then
-        echo ">> [HW] RTL and Bootloader (Hex) are up to date. Skipping Full Synthesis."
+    if [ -z "$RTL_CHANGES" ] && [ -z "$HEX_CHANGES" ] && [ -z "$CONFIG_CHANGES" ]; then
+        echo ">> [HW] RTL, Bootloader, and Config are up to date. Skipping Full Synthesis."
         NEEDS_SYNTH=false
     fi
 fi
 
 if [ "$NEEDS_SYNTH" = true ]; then
-    if [ -n "$HEX_CHANGES" ] && [ -z "$RTL_CHANGES" ]; then
+    if [ -n "$HEX_CHANGES" ] && [ -z "$RTL_CHANGES" ] && [ -z "$CONFIG_CHANGES" ]; then
         echo ">> [HW] Bootloader updated! Starting Full Synthesis to bake new ROM into Bitstream..."
+    elif [ -n "$CONFIG_CHANGES" ]; then
+        echo ">> [HW] platform_config.h updated! Starting Full Synthesis to apply new CPU frequency..."
     else
         echo ">> [HW] Hardware changes detected! Starting Full Synthesis..."
     fi
