@@ -19,7 +19,7 @@ kill_server:
 	@echo ">> [SERVER] Cleaning up background Vivado processes..."
 	-@killall -9 vivado hw_server 2>/dev/null || true
 
-run:
+run: kill_server
 	@echo ">> [SERVER] Warming up Vivado JTAG Server in background..."
 	@mkdir -p $(BUILD_DIR)
 	@python3 -c "import socket; socket.create_connection(('localhost', 3122), 0.1)" 2>/dev/null || \
