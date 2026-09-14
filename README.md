@@ -1,6 +1,6 @@
-# Lab 0 : Environment Setup
+# TinyRISC-V SoC Platform 
 
-## Goal of this lab
+## Table of Contents 
 - [Understand the TinyRISC-V SoC platform.](#tinyrisc-v-soc-platform)
 - [Set up Vivado and the RISC-V toolchain.](#toolchain-setup)
 - [Clone and set up the `TinyRISC-V SoC Platform`.](#platform-setup)
