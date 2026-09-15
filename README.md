@@ -16,7 +16,7 @@ For a CPU to function, it must rely on the Instruction Set Architecture (ISA). A
 Our CPU supports RV32IM, with M-mode only supporting `mcycle` and `mcycleh`, and it also supports the `fence.i` instructions.  
 
 Moreover, the hardware supports `CBO` (Cache-Block Management Operations). We implement the `zicbom` extension, which allows software to manually manage cache coherence by cleaning or invalidating cache blocks.
-<img width="1362" height="725" alt="image" src="https://github.com/user-attachments/assets/7ecd0228-f1e6-4a01-9cb3-ceeec769eb67" />
+<img alt="image" src="images/SoC_Arch_Diagram.svg" />
 
 ### Extended ISAs
 ISA is divided into two levels: the Base ISA and the Extended ISAs.  
@@ -35,7 +35,7 @@ The official specification reserves blank opcodes (such as custom-0), allowing d
 1. Choose a `funct3/funct7` pair. `cfu_op0`..`cfu_op7` select `funct3=0..7`
 3. Implement the hardware behavior in `../hw/srcs/NPU.v`, or start from `../hw/templates/custom_accelerator_template.v`
 3. Implement the software fallback in `app/software_cfu.cc`
-4. Add a functional or cycle-counting test in `project/accelerator_tests.cc` or another project source, then register it in the appropriate Lab submenu in `project/proj_menu.cc`  
+4. Add a functional or cycle-counting test in `project/<your own test>.cc` or another project source, then register it in the appropriate Lab submenu in `project/proj_menu.cc`  
 
 Build with `USE_SOFTWARE_CFU=1` when you want to test the software fallback without issuing `CUSTOM-0` instructions.  
 Use `templates/custom_instruction_template.cc` for a standalone performance test skeleton. After adding template-based code, run `make validate`; if the extension adds a new menu item, register its function in the appropriate Lab submenu in `project/proj_menu.cc`.

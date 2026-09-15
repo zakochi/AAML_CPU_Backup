@@ -1,17 +1,17 @@
 #include "proj_menu.h"
 
-#include "accelerator_test.h"
+#include "platform_test.h"
 #include "menu.h"
 
 namespace {
 
 const MenuItem kLabItems[] = {
-    MENU_ITEM('a', "Accelerator AXI test", accelerator_test),
+    MENU_ITEM('a', "Basic platform tests", platform_test),
     MENU_END,
 };
 
 const Menu kLabMenu = {
-    "Lab 0: Simple Accelerator Tests",
+    "Lab 0: Basic Platform Tests",
     "lab0",
     kLabItems,
 };

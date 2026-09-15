@@ -1732,17 +1732,14 @@
           "NPU_done": {
             "direction": "O"
           },
-          "NPU_exception": {
-            "direction": "O"
-          },
           "funct3_i": {
             "direction": "I",
-            "left": "2",
+            "left": "3",
             "right": "0"
           },
           "funct7_i": {
             "direction": "I",
-            "left": "6",
+            "left": "31",
             "right": "0"
           }
         },
